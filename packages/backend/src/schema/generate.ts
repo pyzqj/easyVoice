@@ -6,7 +6,7 @@ export const generateSchema = z.object({
     .string()
     .trim()
     .min(5, { message: '文本最少 5 字符！' })
-    .max(100, { message: '试听文本最多 100 字符！' }),
+    .max(200, { message: '试听文本最多 100 字符！' }),
   voice: z.string(),
   pitch: z.string().optional(),
   volume: z.string().optional(),

@@ -38,7 +38,7 @@ export async function createTask(req: Request, res: Response, next: NextFunction
           file: path.parse(result.audio).base,
           srt: path.parse(result.srt).base,
         }
-        taskManager.updateTask(task.id, data)
+        taskManager.updateTask(task.id, { result: data })
         logger.info(`Updated task ID: ${task.id} with result`, result)
       })
       .catch((err) => {
@@ -49,7 +49,7 @@ export async function createTask(req: Request, res: Response, next: NextFunction
       })
     const data = {
       success: true,
-      data: { task },
+      data: { ...task },
       code: 200,
     }
     res.json(data)
@@ -67,7 +67,25 @@ export async function getTask(req: Request, res: Response, next: NextFunction) {
     }
     const data = {
       success: true,
-      data: { task },
+      data: { ...task },
+      code: 200,
+    }
+    res.json(data)
+  } catch (error) {
+    next(error)
+  }
+}
+export async function getTaskStats(_req: Request, res: Response, next: NextFunction) {
+  try {
+    const stats = taskManager.getTaskStats()
+    logger.debug('stats:', stats)
+    if (!stats) {
+      res.status(404).json({ success: false, message: 'stats not found', code: 404 })
+      return
+    }
+    const data = {
+      success: true,
+      data: { ...stats },
       code: 200,
     }
     res.json(data)

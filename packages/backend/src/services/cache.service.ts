@@ -60,14 +60,19 @@ class CacheService {
 
   // 获取缓存
   async get<T>(str: string): Promise<T | null> {
-    const key = this.generateKey(str)
-    const item = await this.storage.get<CacheItem<T>>(key)
-    if (!item || item.expireAt < Date.now()) {
-      await this.storage.delete(key) // 删除过期项
+    try {
+      const key = this.generateKey(str)
+      const item = await this.storage.get<CacheItem<T>>(key)
+      if (!item || item.expireAt < Date.now()) {
+        await this.storage.delete(key) // 删除过期项
+        return null
+      }
+      logger.debug(`CacheSerive hit cache: ${key}`)
+      return item.value
+    } catch (err) {
+      logger.warn(`CacheSerive get cache error: ${(err as Error).message}`, { str })
       return null
     }
-    logger.debug(`CacheSerive hit cache: ${key}`)
-    return item.value
   }
 
   // 检查是否存在
