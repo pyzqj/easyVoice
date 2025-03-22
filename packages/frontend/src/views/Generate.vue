@@ -31,10 +31,7 @@
               :auto-upload="false"
               :on-change="handleFile"
               :show-file-list="false"
-<<<<<<< HEAD
-=======
               accept=".txt"
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
             >
               <el-icon class="el-icon--upload"><upload-filled /></el-icon>
               <div class="el-upload__text">拖拽文件到此处或 <em>点击上传</em></div>
@@ -218,20 +215,12 @@
       <el-button
         type="primary"
         size="large"
-<<<<<<< HEAD
-        @click="generateAudio"
-=======
         @click="handleGenerate"
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
         :loading="generating"
         :disabled="!canGenerate"
       >
         生成语音
       </el-button>
-<<<<<<< HEAD
-      <el-button type="danger" size="large" @click="reset"> 重置配置 </el-button>
-    </div>
-=======
       <el-button :disabled="generating" type="danger" size="large" @click="reset">
         重置配置
       </el-button>
@@ -243,7 +232,6 @@
       :percentage="generationStore.progress"
       :color="customColors"
     />
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
     <DownloadList />
   </div>
 </template>
@@ -252,9 +240,6 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useGenerationStore } from '@/stores/generation'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
-<<<<<<< HEAD
-import { generateTTS, getTask, getVoiceList, createTask, type Voice } from '@/api/tts'
-=======
 import {
   generateTTS,
   getTask,
@@ -263,7 +248,6 @@ import {
   type Voice,
   type GenerateResponse,
 } from '@/api/tts'
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
 import { Sparkles } from 'lucide-vue-next'
 import { UploadFilled, Service } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -293,9 +277,6 @@ const languages = ref([
   { code: 'en-AU', name: '英语（澳大利亚）' },
   { code: 'en-CA', name: '英语（加拿大）' },
 ])
-<<<<<<< HEAD
-
-=======
 const customColors = [
   { color: '#ff4d4f', percentage: 20 }, // 红色：表示时间紧迫或低进度
   { color: '#ffaa00', percentage: 40 }, // 橙色：表示仍需努力的中低进度
@@ -303,7 +284,6 @@ const customColors = [
   { color: '#52c41a', percentage: 80 }, // 绿色：表示接近完成
   { color: '#1890ff', percentage: 100 }, // 蓝色：表示完全达成
 ]
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
 const reset = () => {
   ElMessageBox.confirm('确定将配置重置为初始状态', '操作提示', {
     confirmButtonText: '确定',
@@ -432,11 +412,6 @@ onMounted(async () => {
 // 处理文件上传
 const handleFile = (file: any) => {
   const reader = new FileReader()
-<<<<<<< HEAD
-  reader.onload = (e) => {
-    updateConfig('inputText', e.target?.result as string)
-  }
-=======
   const { name, type } = file.raw
   if (type !== 'text/plain') {
     ElMessage.error('请上传 txt 文本！')
@@ -449,7 +424,6 @@ const handleFile = (file: any) => {
   reader.onerror = () => {
     ElMessage.error('文件读取错误，请上传 txt 文本！')
   }
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
   reader.readAsText(file.raw)
 }
 
@@ -471,28 +445,11 @@ const filterVoices = () => {
     updateConfig('selectedVoice', '')
   }
 }
-<<<<<<< HEAD
-const buildParams = () => {
-  const {
-    previewText,
-    selectedVoice,
-    rate,
-    pitch,
-    volume,
-    openaiBaseUrl,
-    openaiKey,
-    openaiModel,
-    voiceMode,
-  } = audioConfig
-  const params: any = {
-    text: previewText,
-=======
 const buildParams = (text: string) => {
   const { selectedVoice, rate, pitch, volume, openaiBaseUrl, openaiKey, openaiModel, voiceMode } =
     audioConfig
   const params: any = {
     text: text.trim(),
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
   }
 
   if (voiceMode === 'preset') {
@@ -513,11 +470,7 @@ const previewAudio = async () => {
   if (!previewText.trim() || !canPreview.value) return
   previewLoading.value = true
   try {
-<<<<<<< HEAD
-    const params = buildParams()
-=======
     const params = buildParams(previewText)
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
 
     const { data } = await generateTTS(params)
     if (data?.audio) {
@@ -535,11 +488,6 @@ const previewAudio = async () => {
   }
 }
 
-<<<<<<< HEAD
-// 生成音频
-const generateAudio = async () => {
-  if (!audioConfig.inputText.trim() || !canGenerate.value) return
-=======
 const handleGenerate = () => {
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
@@ -571,73 +519,33 @@ const updateAudioList = (data: GenerateResponse) => {
 const generateAudio = async () => {
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
 
   generating.value = true
   generationStore.updateProgress(0)
   progressStatus.value = '准备中...'
 
   try {
-<<<<<<< HEAD
-    const params = buildParams()
-=======
     const params = buildParams(inputText)
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
     const { data } = await generateTTS(params)
     if (!data) {
       throw new Error(`no data returned from generateTTS`)
     }
-<<<<<<< HEAD
-    const audioItem = {
-      audio: data.audio,
-      file: data.file,
-      size: data.size,
-      srt: data.srt,
-      isDownloading: false,
-      isSrtLoading: false,
-      isPlaying: false,
-      progress: 0,
-    }
-    const newAudioList = [...generationStore.audioList, audioItem]
-    generationStore.updateAudioList(newAudioList)
-    progressStatus.value = '生成完成！'
-    ElMessage.success('语音生成成功！')
-    generating.value = false
-    if (Math.random() > 1e5) {
-      // TODO: 根据ID轮询进度，展示不同文案
-      pooling('123')
-    }
-=======
     updateAudioList(data)
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
   } catch (error) {
     console.error('生成失败:', error)
     commonErrorHandler(error)
     generating.value = false
   }
 }
-<<<<<<< HEAD
-const generateAudioTask = async () => {
-  if (!audioConfig.inputText.trim() || !canGenerate.value) return
-=======
 
 const generateAudioTask = async () => {
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
   generating.value = true
   generationStore.updateProgress(0)
   progressStatus.value = '准备中...'
 
   try {
-<<<<<<< HEAD
-    const params = buildParams()
-    const { data } = await createTask(params)
-    if (!data) {
-      throw new Error(`no data returned from generateTTS`)
-    }
-    const taskId = data.id
-=======
     const params = buildParams(inputText)
     const { data } = await createTask(params)
     console.log(`data:`, data)
@@ -646,7 +554,6 @@ const generateAudioTask = async () => {
       throw new Error(`no task id returned from generateTTS`)
     }
     const taskId = data?.id
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
     pooling(taskId)
   } catch (error) {
     console.error('生成失败:', error)
@@ -665,45 +572,21 @@ const pooling = async (taskId: string) => {
     try {
       const { data } = await getTask({ id: taskId })
       const { status, progress: currentProgress, message, result } = data!
-<<<<<<< HEAD
-      const success = status === 'success'
-=======
       console.log(`getTask data:`, data)
       const success = status === 'completed'
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
       const failed = status === 'failed'
       const pending = status === 'pending'
 
       if (!pending) clear()
       if (failed) {
-<<<<<<< HEAD
-=======
         clear()
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
         console.error(message)
         ElMessage.error(`生成失败: ${message}`)
         return
       }
       if (success) {
-<<<<<<< HEAD
-        const audioItem = {
-          audio: result.audio,
-          file: result.file,
-          size: result.size,
-          srt: result.srt,
-          isDownloading: false,
-          isSrtLoading: false,
-          isPlaying: false,
-          progress: 0,
-        }
-        const newAudioList = [...generationStore.audioList, audioItem]
-        generationStore.updateAudioList(newAudioList)
-        progressStatus.value = '生成完成！'
-        ElMessage.success('语音生成成功！')
-=======
         console.log('result:', result)
         updateAudioList(result)
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
         return
       }
 
