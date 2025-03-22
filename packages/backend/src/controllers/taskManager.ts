@@ -30,13 +30,14 @@ class TaskManager {
   }
 
   generateTaskId(fields: any, options: Options = {}) {
-    const { prefix = 'task', length = 16 } = options
+    const { prefix = 'task', length = 32 } = options
     const hash = crypto.createHash('md5')
 
     Object.keys(fields)
       .sort()
       .forEach((key) => {
         const value = fields[key]
+        if (!value) return
         hash.update(key)
         if (typeof value === 'string' && value.length > 1000) {
           for (let i = 0; i < value.length; i += 1000) {
@@ -53,7 +54,7 @@ class TaskManager {
 
   createTask(fields: any, options?: Options): Task {
     const taskId = this.generateTaskId(fields, options)
-    if (this.getTask(taskId)) {
+    if (this.isTaskPending(taskId)) {
       throw new Error(`task: ${taskId} already exists!`)
     }
     if (this.getTaskLength() >= this.MAX_TASKS) {
@@ -82,7 +83,9 @@ class TaskManager {
     this.tasks.set(taskId, task)
     return task
   }
-
+  isTaskPending(taskId: string) {
+    return this.getTask(taskId)?.status === 'pending' || false
+  }
   getTask(taskId: string) {
     return this.tasks.get(taskId) || null
   }
@@ -106,11 +109,21 @@ class TaskManager {
     this.tasks.set(taskId, findTask)
     return findTask
   }
-  updateTask(taskId: string, result: any) {
+  updateTask(
+    taskId: string,
+    {
+      status = 'completed',
+      progress = 100,
+      result,
+    }: { status?: string; progress?: number; result: any }
+  ) {
     const findTask = this.getTask(taskId)
     if (!findTask) {
       throw new Error(`Cannot find task: ${taskId}`)
     }
+    findTask.status = status
+    findTask.updatedAt = new Date()
+    findTask.progress = progress
     findTask.result = result
     this.tasks.set(taskId, findTask)
     return findTask

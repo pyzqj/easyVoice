@@ -214,7 +214,7 @@
       <el-button
         type="primary"
         size="large"
-        @click="generateAudio"
+        @click="handleGenerate"
         :loading="generating"
         :disabled="!canGenerate"
       >
@@ -230,7 +230,14 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useGenerationStore } from '@/stores/generation'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
-import { generateTTS, getTask, getVoiceList, createTask, type Voice } from '@/api/tts'
+import {
+  generateTTS,
+  getTask,
+  getVoiceList,
+  createTask,
+  type Voice,
+  type GenerateResponse,
+} from '@/api/tts'
 import { Sparkles } from 'lucide-vue-next'
 import { UploadFilled, Service } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -456,7 +463,34 @@ const previewAudio = async () => {
   }
 }
 
-// 生成音频
+const handleGenerate = () => {
+  const { inputText } = audioConfig
+  if (!inputText.trim() || !canGenerate.value) return
+  if (inputText.length < 200) {
+    console.warn('[handleGenerate]Input text is too short, generating directly...')
+    generateAudio()
+  } else {
+    console.warn('[handleGenerate]Input text is long, creating task...')
+    generateAudioTask()
+  }
+}
+const updateAudioList = (data: GenerateResponse) => {
+  const audioItem = {
+    audio: data.audio,
+    file: data.file,
+    size: data.size,
+    srt: data.srt,
+    isDownloading: false,
+    isSrtLoading: false,
+    isPlaying: false,
+    progress: 0,
+  }
+  const newAudioList = [...generationStore.audioList, audioItem]
+  generationStore.updateAudioList(newAudioList)
+  progressStatus.value = '生成完成！'
+  ElMessage.success('语音生成成功！')
+  generating.value = false
+}
 const generateAudio = async () => {
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
@@ -471,31 +505,14 @@ const generateAudio = async () => {
     if (!data) {
       throw new Error(`no data returned from generateTTS`)
     }
-    const audioItem = {
-      audio: data.audio,
-      file: data.file,
-      size: data.size,
-      srt: data.srt,
-      isDownloading: false,
-      isSrtLoading: false,
-      isPlaying: false,
-      progress: 0,
-    }
-    const newAudioList = [...generationStore.audioList, audioItem]
-    generationStore.updateAudioList(newAudioList)
-    progressStatus.value = '生成完成！'
-    ElMessage.success('语音生成成功！')
-    generating.value = false
-    if (Math.random() > 1e5) {
-      // TODO: 根据ID轮询进度，展示不同文案
-      pooling('123')
-    }
+    updateAudioList(data)
   } catch (error) {
     console.error('生成失败:', error)
     commonErrorHandler(error)
     generating.value = false
   }
 }
+
 const generateAudioTask = async () => {
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
@@ -506,10 +523,12 @@ const generateAudioTask = async () => {
   try {
     const params = buildParams(inputText)
     const { data } = await createTask(params)
-    if (!data) {
-      throw new Error(`no data returned from generateTTS`)
+    console.log(`data:`, data)
+    if (!data?.id) {
+      console.error(`createTask data: `, data)
+      throw new Error(`no task id returned from generateTTS`)
     }
-    const taskId = data.id
+    const taskId = data?.id
     pooling(taskId)
   } catch (error) {
     console.error('生成失败:', error)
@@ -528,7 +547,8 @@ const pooling = async (taskId: string) => {
     try {
       const { data } = await getTask({ id: taskId })
       const { status, progress: currentProgress, message, result } = data!
-      const success = status === 'success'
+      console.log(`getTask data:`, data)
+      const success = status === 'completed'
       const failed = status === 'failed'
       const pending = status === 'pending'
 
@@ -539,20 +559,8 @@ const pooling = async (taskId: string) => {
         return
       }
       if (success) {
-        const audioItem = {
-          audio: result.audio,
-          file: result.file,
-          size: result.size,
-          srt: result.srt,
-          isDownloading: false,
-          isSrtLoading: false,
-          isPlaying: false,
-          progress: 0,
-        }
-        const newAudioList = [...generationStore.audioList, audioItem]
-        generationStore.updateAudioList(newAudioList)
-        progressStatus.value = '生成完成！'
-        ElMessage.success('语音生成成功！')
+        console.log('result:', result)
+        updateAudioList(result)
         return
       }
 
