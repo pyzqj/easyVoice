@@ -220,8 +220,17 @@
       >
         生成语音
       </el-button>
-      <el-button type="danger" size="large" @click="reset"> 重置配置 </el-button>
+      <el-button :disabled="generating" type="danger" size="large" @click="reset">
+        重置配置
+      </el-button>
     </div>
+    <el-progress
+      v-if="generating"
+      style="margin: 20px auto 0px; max-width: 400px"
+      :stroke-width="12"
+      :percentage="generationStore.progress"
+      :color="customColors"
+    />
     <DownloadList />
   </div>
 </template>
@@ -267,7 +276,13 @@ const languages = ref([
   { code: 'en-AU', name: '英语（澳大利亚）' },
   { code: 'en-CA', name: '英语（加拿大）' },
 ])
-
+const customColors = [
+  { color: '#ff4d4f', percentage: 20 }, // 红色：表示时间紧迫或低进度
+  { color: '#ffaa00', percentage: 40 }, // 橙色：表示仍需努力的中低进度
+  { color: '#fadb14', percentage: 60 }, // 黄色：表示中等偏上的进度
+  { color: '#52c41a', percentage: 80 }, // 绿色：表示接近完成
+  { color: '#1890ff', percentage: 100 }, // 蓝色：表示完全达成
+]
 const reset = () => {
   ElMessageBox.confirm('确定将配置重置为初始状态', '操作提示', {
     confirmButtonText: '确定',
@@ -554,6 +569,7 @@ const pooling = async (taskId: string) => {
 
       if (!pending) clear()
       if (failed) {
+        clear()
         console.error(message)
         ElMessage.error(`生成失败: ${message}`)
         return

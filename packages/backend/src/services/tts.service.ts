@@ -154,6 +154,10 @@ async function generateMultipleSegments(
 
   const fileList: string[] = []
   const length = segments.length
+  let handledLength = 0
+  const getProgress = () => {
+    return Number(((handledLength / length) * 100).toFixed(2))
+  }
   const tasks = segments.map((text, index) => async () => {
     const output = path.resolve(tmpDirPath, `${index + 1}_splits.mp3`)
     const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
@@ -166,7 +170,8 @@ async function generateMultipleSegments(
     const result = await generateSingleVoice({ text, pitch, voice, rate, volume, output })
     logger.debug(`Cache miss and generate audio: ${result.audio}, ${result.srt}`)
     fileList.push(result.audio)
-    task?.updateProgress?.(task.id, Number((((index + 1) / length) * 100).toFixed(2)))
+    handledLength++
+    task?.updateProgress?.(task.id, getProgress())
     await audioCacheInstance.setAudio(cacheKey, { ...params, ...result })
     return result
   })
