@@ -413,20 +413,11 @@ const filterVoices = () => {
     updateConfig('selectedVoice', '')
   }
 }
-const buildParams = () => {
-  const {
-    previewText,
-    selectedVoice,
-    rate,
-    pitch,
-    volume,
-    openaiBaseUrl,
-    openaiKey,
-    openaiModel,
-    voiceMode,
-  } = audioConfig
+const buildParams = (text: string) => {
+  const { selectedVoice, rate, pitch, volume, openaiBaseUrl, openaiKey, openaiModel, voiceMode } =
+    audioConfig
   const params: any = {
-    text: previewText,
+    text: text.trim(),
   }
 
   if (voiceMode === 'preset') {
@@ -447,7 +438,7 @@ const previewAudio = async () => {
   if (!previewText.trim() || !canPreview.value) return
   previewLoading.value = true
   try {
-    const params = buildParams()
+    const params = buildParams(previewText)
 
     const { data } = await generateTTS(params)
     if (data?.audio) {
@@ -467,14 +458,15 @@ const previewAudio = async () => {
 
 // 生成音频
 const generateAudio = async () => {
-  if (!audioConfig.inputText.trim() || !canGenerate.value) return
+  const { inputText } = audioConfig
+  if (!inputText.trim() || !canGenerate.value) return
 
   generating.value = true
   generationStore.updateProgress(0)
   progressStatus.value = '准备中...'
 
   try {
-    const params = buildParams()
+    const params = buildParams(inputText)
     const { data } = await generateTTS(params)
     if (!data) {
       throw new Error(`no data returned from generateTTS`)
@@ -505,13 +497,14 @@ const generateAudio = async () => {
   }
 }
 const generateAudioTask = async () => {
-  if (!audioConfig.inputText.trim() || !canGenerate.value) return
+  const { inputText } = audioConfig
+  if (!inputText.trim() || !canGenerate.value) return
   generating.value = true
   generationStore.updateProgress(0)
   progressStatus.value = '准备中...'
 
   try {
-    const params = buildParams()
+    const params = buildParams(inputText)
     const { data } = await createTask(params)
     if (!data) {
       throw new Error(`no data returned from generateTTS`)

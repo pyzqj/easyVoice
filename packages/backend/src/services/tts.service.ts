@@ -13,7 +13,7 @@ import { Generate } from '../schema/generate'
 import { MapLimitController } from '../controllers/concurrency.controller'
 import audioCacheInstance from './audioCache.service'
 import { mergeSubtitleFiles, SubtitleFile, SubtitleFiles } from '../utils/subtitle'
-import { Task } from '../controllers/taskManager'
+import taskManager, { Task } from '../controllers/taskManager'
 
 // 错误消息枚举
 enum ErrorMessages {
@@ -32,7 +32,8 @@ enum ErrorMessages {
 export async function generateTTS(params: Required<Generate>, task?: Task): Promise<TTSResult> {
   const { text, pitch, voice, rate, volume, useLLM } = params
   // 检查缓存
-  const cache = await getCache(voice, text)
+  const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
+  const cache = await audioCacheInstance.getAudio(cacheKey)
   if (cache) {
     logger.info(`Cache hit: ${voice} ${text.slice(0, 10)}`)
     return cache
@@ -67,22 +68,9 @@ export async function generateTTS(params: Required<Generate>, task?: Task): Prom
   if (result.partial) {
     logger.warn(`Partial result detected, some splits generated audio failed!`)
   } else {
-    await audioCacheInstance.setAudio(`${voice}_${text}`, { ...params, ...result })
+    await audioCacheInstance.setAudio(cacheKey, { ...params, ...result })
   }
   return result
-}
-
-/**
- * 从缓存中获取 TTS 结果
- */
-async function getCache(voice: string, text: string): Promise<TTSResult | null> {
-  try {
-    const cache = await audioCacheInstance.getAudio(`${voice}_${text}`)
-    return cache && cache.audio ? { audio: cache.audio, srt: cache.srt } : null
-  } catch (error) {
-    logger.warn(`Cache retrieval failed: ${error}`)
-    return null
-  }
 }
 
 /**
@@ -168,7 +156,8 @@ async function generateMultipleSegments(
   const length = segments.length
   const tasks = segments.map((text, index) => async () => {
     const output = path.resolve(tmpDirPath, `${index + 1}_splits.mp3`)
-    const cache = await getCache(voice, text)
+    const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
+    const cache = await audioCacheInstance.getAudio(cacheKey)
     if (cache) {
       logger.info(`Cache hit[segments]: ${voice} ${text.slice(0, 10)}`)
       fileList.push(cache.audio)
@@ -178,7 +167,7 @@ async function generateMultipleSegments(
     logger.debug(`Cache miss and generate audio: ${result.audio}, ${result.srt}`)
     fileList.push(result.audio)
     task?.updateProgress?.(task.id, Number((((index + 1) / length) * 100).toFixed(2)))
-    await audioCacheInstance.setAudio(`${voice}_${text}`, { ...params, ...result })
+    await audioCacheInstance.setAudio(cacheKey, { ...params, ...result })
     return result
   })
   let partial = false

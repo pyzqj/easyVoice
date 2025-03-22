@@ -223,6 +223,8 @@ const clearAll = () => {
 .download-list {
   max-height: 320px;
   margin: 12px 0;
+  overflow-y: auto;
+  padding: 0px 10px;
 }
 
 .download-item {
