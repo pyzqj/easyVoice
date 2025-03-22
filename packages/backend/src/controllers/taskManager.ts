@@ -1,7 +1,12 @@
 import crypto from 'crypto'
+import { memoryUsage } from 'process'
+import { formatFileSize } from '../utils'
 
 interface Options {
   prefix?: string
+  length?: number
+}
+interface TaskManagerOptions {
   length?: number
 }
 export interface Task {
@@ -18,13 +23,14 @@ export interface Task {
 }
 class TaskManager {
   tasks: Map<string, Task>
-  constructor() {
+  MAX_TASKS: number
+  constructor(options?: TaskManagerOptions) {
     this.tasks = new Map()
+    this.MAX_TASKS = options?.length || 10
   }
 
   generateTaskId(fields: any, options: Options = {}) {
     const { prefix = 'task', length = 16 } = options
-
     const hash = crypto.createHash('md5')
 
     Object.keys(fields)
@@ -49,6 +55,9 @@ class TaskManager {
     const taskId = this.generateTaskId(fields, options)
     if (this.getTask(taskId)) {
       throw new Error(`task: ${taskId} already exists!`)
+    }
+    if (this.getTaskLength() >= this.MAX_TASKS) {
+      throw new Error(`Cannot create more than ${this.MAX_TASKS} tasks!`)
     }
     const task = {
       id: taskId,
@@ -105,6 +114,25 @@ class TaskManager {
     findTask.result = result
     this.tasks.set(taskId, findTask)
     return findTask
+  }
+  getTaskLength() {
+    return this.tasks.size
+  }
+  getTaskStats() {
+    const tasks = Array.from(this.tasks.values())
+    const memory = {
+      heapUsed: formatFileSize(process.memoryUsage().heapUsed),
+      heapTotal: formatFileSize(process.memoryUsage().heapTotal),
+      rss: formatFileSize(process.memoryUsage().rss),
+    }
+    const stats = {
+      totalTasks: this.getTaskLength(),
+      completedTasks: tasks.filter((task) => task.status === 'completed').length,
+      failedTasks: tasks.filter((task) => task.status === 'failed').length,
+      pendingTasks: tasks.filter((task) => task.status === 'pending').length,
+      memory,
+    }
+    return stats
   }
 }
 const instance = new TaskManager()

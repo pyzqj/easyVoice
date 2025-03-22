@@ -75,6 +75,24 @@ export async function getTask(req: Request, res: Response, next: NextFunction) {
     next(error)
   }
 }
+export async function getTaskStats(_req: Request, res: Response, next: NextFunction) {
+  try {
+    const stats = taskManager.getTaskStats()
+    logger.debug('stats:', stats)
+    if (!stats) {
+      res.status(404).json({ success: false, message: 'stats not found', code: 404 })
+      return
+    }
+    const data = {
+      success: true,
+      data: { stats },
+      code: 200,
+    }
+    res.json(data)
+  } catch (error) {
+    next(error)
+  }
+}
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
     logger.debug('Generating audio with body:', req.body)
