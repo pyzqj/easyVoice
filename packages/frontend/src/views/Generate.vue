@@ -31,6 +31,7 @@
               :auto-upload="false"
               :on-change="handleFile"
               :show-file-list="false"
+              accept=".txt"
             >
               <el-icon class="el-icon--upload"><upload-filled /></el-icon>
               <div class="el-upload__text">拖拽文件到此处或 <em>点击上传</em></div>
@@ -411,8 +412,17 @@ onMounted(async () => {
 // 处理文件上传
 const handleFile = (file: any) => {
   const reader = new FileReader()
+  const { name, type } = file.raw
+  if (type !== 'text/plain') {
+    ElMessage.error('请上传 txt 文本！')
+    console.log(name, type)
+    return
+  }
   reader.onload = (e) => {
     updateConfig('inputText', e.target?.result as string)
+  }
+  reader.onerror = () => {
+    ElMessage.error('文件读取错误，请上传 txt 文本！')
   }
   reader.readAsText(file.raw)
 }
