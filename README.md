@@ -21,6 +21,8 @@
   支持将大型文本文件一键转换为语音，省时又高效！  
 - **多语言支持** 🌍  
   支持中文、英文等多种语言，畅享全球化的语音体验。  
+- **字幕支持** 🌍  
+  自动生成字幕文件，方便视频制作和字幕翻译。  
 - **角色配音** 🎭  
   提供多种声音特性，完美适配不同角色的配音需求。  
 - **自定义设置** ⚙️  
@@ -87,15 +89,49 @@ pnpm i -r
 3. 启动项目
 
 ```bash
-pnpm dev:root
+pnpm dev
 ```
 
 4. 打开浏览器，访问 `http://localhost:5173/`，开始体验吧！
 
-## FAQ:
+## 环境变量
+
+- PORT=3000 服务端口
+- OPENAI_BASE_URL=<https://api.openai.com/v1> openai compatible base url
+- OPENAI_API_KEY=sk-or-*** openai key
+- MODEL_NAME=gpt-4o-mini 模型名称
+- RATE_LIMIT_WINDOW=1 生产模式下速率限制窗口大小
+- RATE_LIMIT=10 生产模式下速率限制
+- EDGE_API_LIMIT=3 Edge-TTS API 并发
+
+所有环境变量均可以在项目根目录`.env`或者 `packages/backend/.env` 中配置，优先级为 `packages/backend/.env > .env`。
+
+如果你通过 docker 运行，可以通过 -e 指定环境变量
+
+```bash
+docker run -d \
+  --restart unless-stopped \
+  --name easyvoice \
+  -p 3000:3000 \
+  -v $(pwd)/audio:/app/audio \
+  -e OPENAI_BASE_URL=https://api.openai.com/v1 \
+  -e OPENAI_KEY=your_openai_key_here \
+  -e MODEL_NAME=gpt-4o-mini \
+  -e EDGE_API_LIMIT=2 \
+  cosin2077/easyvoice:latest
+```
+
+## FAQ
 
 - **Q: 如何配置 OpenAI 相关信息?**
-- A: 在 `.env` 文件中添加 `OPENAI_API_KEY=your_api_key` `OPENAI_BASE_URL=openai_compatible_base_url` `MODEL_NAME=openai_model_name`。
+- A: 在 `.env` 文件中添加 `OPENAI_API_KEY=your_api_key` `OPENAI_BASE_URL=openai_compatible_base_url` `MODEL_NAME=openai_model_name`，你可以用任何 openai compatible 的 API 地址和模型名称，例如 `https://openrouter.ai/api/v1/` 和 `deepseek`。
 
 - **Q: 为什么我的配音效果不好？**
 - A: AI 推荐配音是通过大模型来决定不同的段落的配音参数，大模型的能力直接影响配音结果，你可以尝试更换不同的大模型，或者是用 Edge-TTS 选择固定的声音配音。
+
+- **Q: 速度太慢？**
+- A: AI 推荐配音需要把输入的文本分段、然后让 AI 分析、推荐每一分段的配音参数，最后再生成音频、拼接。速度会比直接用 Edge-TTS慢。你可以更换相应更快的大模型，或者尝试调节`.env`文件的 Edge-TTS 的并发参数：EDGE_API_LIMIT为更大的值(10 以下)，注意并发太高可能会有限制。
+
+## Tips
+
+**目前 EasyVoice 主要通过 Edge-TTS API 提供免费语音合成，后续可能支持接入官方 API, 谷歌 TTS, 克隆配音服务等。**

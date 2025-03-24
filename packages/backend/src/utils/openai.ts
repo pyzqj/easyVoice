@@ -116,34 +116,4 @@ export function createOpenAIClient() {
   }
 }
 
-// 默认实例
 export const openai = createOpenAIClient()
-
-// // 使用示例
-// async function example() {
-//   // 使用默认配置
-//   const client = createOpenAIClient()
-
-//   try {
-//     // 使用初始配置
-//     const initialResponse = await client.createChatCompletion({
-//       messages: [{ role: 'user', content: 'Hello' }],
-//     })
-//     console.log('Initial response:', initialResponse.choices[0].message.content)
-
-//     // 动态修改配置
-//     client.config({
-//       baseURL: 'https://custom-api.com/v1',
-//       apiKey: 'new-api-key',
-//       model: 'new-model',
-//     })
-
-//     // 使用新配置
-//     const updatedResponse = await client.createChatCompletion({
-//       messages: [{ role: 'user', content: 'Hi with new config' }],
-//     })
-//     console.log('Updated response:', updatedResponse.choices[0].message.content)
-//   } catch (error) {
-//     console.error('Error:', error)
-//   }
-// }

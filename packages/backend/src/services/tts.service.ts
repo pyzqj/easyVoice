@@ -1,8 +1,7 @@
 import path from 'path'
 import fs from 'fs/promises'
 import ffmpeg from 'fluent-ffmpeg'
-import { runEdgeTTS } from '../utils/spawn'
-import { AUDIO_DIR, STATIC_DOMAIN } from '../config'
+import { AUDIO_DIR, STATIC_DOMAIN, EDGE_API_LIMIT } from '../config'
 import { logger } from '../utils/logger'
 import { getPrompt } from '../llm/prompt/generateSegment'
 import { ensureDir, generateId, getLangConfig, readJson } from '../utils'
@@ -14,7 +13,6 @@ import { MapLimitController } from '../controllers/concurrency.controller'
 import audioCacheInstance from './audioCache.service'
 import { mergeSubtitleFiles, SubtitleFile, SubtitleFiles } from '../utils/subtitle'
 import taskManager, { Task } from '../controllers/taskManager'
-import { AxiosError } from 'axios'
 
 // 错误消息枚举
 enum ErrorMessages {
@@ -256,7 +254,7 @@ async function buildSegmentList(
     return result
   })
   let partial = false
-  const results = await runConcurrentTasks(tasks, 3)
+  const results = await runConcurrentTasks(tasks, EDGE_API_LIMIT)
   if (results?.some((result) => !result.success)) {
     logger.warn(`Partial result detected, some splits generated audio failed!`, results)
     partial = true

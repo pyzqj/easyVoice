@@ -24,3 +24,5 @@ export const STATIC_DOMAIN = process.env.NODE_ENV === 'development' ? 'http://lo
 
 export const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW || '0') || 10
 export const RATE_LIMIT = parseInt(process.env.RATE_LIMIT || '0') || 1e6
+
+export const EDGE_API_LIMIT = parseInt(process.env.EDGE_API_LIMIT || '3') || 3
