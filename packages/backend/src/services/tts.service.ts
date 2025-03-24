@@ -103,11 +103,15 @@ async function generateWithLLM(
       )
     }
     const result = await buildSegmentList(segment, formatLlmSegments(llmSegments), task)
+    task?.updateProgress?.(task.id, 100)
     return result
   } else {
     logger.info('Splitting text into multiple segments:', segments.length)
     let finalSegments = []
     let count = 0
+    const getProgress = () => {
+      return Number(((count / segments.length) * 100).toFixed(2))
+    }
     for (let seg of segments) {
       count++
       const prompt = getPrompt(lang, voiceList, seg)
@@ -121,9 +125,9 @@ async function generateWithLLM(
       }
       const result = await buildSegmentList(
         { ...segment, id: `[segments:${count}]${segment.id}` },
-        formatLlmSegments(llmSegments),
-        task
+        formatLlmSegments(llmSegments)
       )
+      task?.updateProgress?.(task.id, getProgress())
       finalSegments.push(result)
     }
     return await buildFinal(finalSegments, id)
@@ -169,7 +173,9 @@ async function generateWithoutLLM(
     return buildSegment(segment, params)
   } else {
     const buildSegments = segments.map((segment) => ({ ...params, text: segment }))
-    return buildSegmentList(segment, buildSegments, task)
+    let result = buildSegmentList(segment, buildSegments, task)
+    task?.updateProgress?.(task.id, 100)
+    return result
   }
 }
 
@@ -209,7 +215,8 @@ async function buildSegment(
 async function buildSegmentList(
   segment: Segment,
   segments: BuildSegment[],
-  task?: Task
+  task?: Task,
+  totalSegments?: number
 ): Promise<TTSResult> {
   const fileList: string[] = []
   const length = segments.length
@@ -227,7 +234,7 @@ async function buildSegmentList(
     JSON.stringify(segments, null, 2)
   )
   const getProgress = () => {
-    return Number(((handledLength / length) * 100).toFixed(2))
+    return Number((((handledLength / length) * 100) / (id.includes('segment') ? 2 : 1)).toFixed(2))
   }
   const tasks = segments.map((segment, index) => async () => {
     const { text, pitch, voice, rate, volume } = segment
@@ -258,7 +265,6 @@ async function buildSegmentList(
   logger.debug(`Concatenating audio files from ${tmpDirPath} to ${outputFile}`)
   await concatDirAudio({ inputDir: tmpDirPath, fileList, outputFile })
   await concatDirSrt({ inputDir: tmpDirPath, fileList, outputFile })
-  task?.updateProgress?.(task.id, 100)
   logger.debug(
     `Concatenating SRT files from ${tmpDirPath} to ${outputFile.replace('.mp3', '.srt')}`
   )
