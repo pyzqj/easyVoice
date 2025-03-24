@@ -83,8 +83,15 @@ async function generateWithLLM(
   lang: string,
   task?: Task
 ): Promise<TTSResult> {
-  const { text } = segment
+  const { text, id } = segment
   const { length, segments } = splitText(text.trim())
+  const formatLlmSegments = (llmSegments: any) =>
+    llmSegments
+      .filter((segment: any) => segment.text)
+      .map((segment: any) => ({
+        ...segment,
+        voice: segment.name,
+      }))
   if (length <= 1) {
     const prompt = getPrompt(lang, voiceList, segments[0])
     logger.debug(`Prompt for LLM: ${prompt}`)
@@ -95,36 +102,53 @@ async function generateWithLLM(
         'LLM response is not an array, please switch to Edge TTS mode or use another model'
       )
     }
-    const result = await buildSegmentList(
-      segment,
-      llmSegments
-        .filter((segment) => segment.text)
-        .map((segment) => ({
-          ...segment,
-          voice: segment.name,
-        }))
-    )
+    const result = await buildSegmentList(segment, formatLlmSegments(llmSegments))
     return result
   } else {
     logger.info('Splitting text into multiple segments:', segments.length)
     let finalSegments = []
+    let count = 0
     for (let seg of segments) {
       const prompt = getPrompt(lang, voiceList, seg)
       logger.debug(`Prompt for LLM: ${prompt}`)
       const llmResponse = await fetchLLMSegment(prompt)
-      let llmSegments = llmResponse?.result || []
+      let llmSegments = llmResponse?.result || llmResponse?.segments || []
       if (!Array.isArray(llmSegments)) {
         throw new Error(
           'LLM response is not an array, please switch to Edge TTS mode or use another model'
         )
       }
-      const result = await buildSegmentList(segment, llmSegments)
+      const result = await buildSegmentList(
+        { ...segment, id: `[segments:${count++}]${segment.id}` },
+        formatLlmSegments(llmSegments)
+      )
       finalSegments.push(result)
     }
-    console.log(finalSegments)
+    return await buildFinal(finalSegments, id)
   }
 }
+const buildFinal = async (finalSegments: TTSResult[], id: string) => {
+  const subtitleFiles: SubtitleFiles = await Promise.all(
+    finalSegments.map((file) => {
+      const base = path.basename(file.audio)
+      const jsonPath = path.resolve(AUDIO_DIR, base.replace('.mp3', ''), 'all_splits.mp3.json')
+      return readJson<SubtitleFile>(jsonPath)
+    })
+  )
 
+  const mergedJson = mergeSubtitleFiles(subtitleFiles)
+  const finalJson = path.resolve(AUDIO_DIR, id.replace('.mp3', ''), '[merged]all_splits.mp3.json')
+  await fs.writeFile(finalJson, JSON.stringify(mergedJson, null, 2))
+  await generateSrt(finalJson, id.replace('.mp3', '.srt'))
+  const fileList = finalSegments.map((segment) => path.resolve(AUDIO_DIR, segment.audio))
+  const tmpDirPath = path.resolve(AUDIO_DIR, id + 'merged')
+  const outputFile = path.resolve(AUDIO_DIR, id)
+  await concatDirAudio({ inputDir: tmpDirPath, fileList, outputFile })
+  return {
+    audio: id,
+    srt: id.replace('.mp3', '.srt'),
+  }
+}
 /**
  * 不使用 LLM 生成 TTS
  */
