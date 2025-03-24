@@ -102,13 +102,14 @@ async function generateWithLLM(
         'LLM response is not an array, please switch to Edge TTS mode or use another model'
       )
     }
-    const result = await buildSegmentList(segment, formatLlmSegments(llmSegments))
+    const result = await buildSegmentList(segment, formatLlmSegments(llmSegments), task)
     return result
   } else {
     logger.info('Splitting text into multiple segments:', segments.length)
     let finalSegments = []
     let count = 0
     for (let seg of segments) {
+      count++
       const prompt = getPrompt(lang, voiceList, seg)
       logger.debug(`Prompt for LLM: ${prompt}`)
       const llmResponse = await fetchLLMSegment(prompt)
@@ -119,8 +120,9 @@ async function generateWithLLM(
         )
       }
       const result = await buildSegmentList(
-        { ...segment, id: `[segments:${count++}]${segment.id}` },
-        formatLlmSegments(llmSegments)
+        { ...segment, id: `[segments:${count}]${segment.id}` },
+        formatLlmSegments(llmSegments),
+        task
       )
       finalSegments.push(result)
     }
@@ -137,16 +139,19 @@ const buildFinal = async (finalSegments: TTSResult[], id: string) => {
   )
 
   const mergedJson = mergeSubtitleFiles(subtitleFiles)
-  const finalJson = path.resolve(AUDIO_DIR, id.replace('.mp3', ''), '[merged]all_splits.mp3.json')
+  const finalDir = path.resolve(AUDIO_DIR, id.replace('.mp3', ''))
+  await ensureDir(finalDir)
+  const finalJson = path.resolve(finalDir, '[merged]all_splits.mp3.json')
   await fs.writeFile(finalJson, JSON.stringify(mergedJson, null, 2))
-  await generateSrt(finalJson, id.replace('.mp3', '.srt'))
-  const fileList = finalSegments.map((segment) => path.resolve(AUDIO_DIR, segment.audio))
-  const tmpDirPath = path.resolve(AUDIO_DIR, id + 'merged')
+  await generateSrt(finalJson, path.resolve(AUDIO_DIR, id.replace('.mp3', '.srt')))
+  const fileList = finalSegments.map((segment) =>
+    path.resolve(AUDIO_DIR, path.parse(segment.audio).base)
+  )
   const outputFile = path.resolve(AUDIO_DIR, id)
-  await concatDirAudio({ inputDir: tmpDirPath, fileList, outputFile })
+  await concatDirAudio({ inputDir: finalDir, fileList, outputFile })
   return {
-    audio: id,
-    srt: id.replace('.mp3', '.srt'),
+    audio: `${STATIC_DOMAIN}/${id}`,
+    srt: `${STATIC_DOMAIN}/${id.replace('.mp3', '.srt')}`,
   }
 }
 /**
