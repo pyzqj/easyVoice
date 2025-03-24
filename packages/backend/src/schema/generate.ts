@@ -15,9 +15,9 @@ export const edgeSchema = z.object({
 
 export const llmSchema = z.object({
   text: z.string().trim().min(5, { message: '文本最少 5 字符！' }),
-  openaiBaseUrl: z.string().trim().url('请输入有效的 URL！'),
-  openaiKey: z.string().trim().min(1, { message: '请环境变量设置或前端传入openaiKey！' }),
-  openaiModel: z.string().trim().min(1, { message: '请环境变量设置或前端传入openaiModel模型名称！' }),
+  openaiBaseUrl: z.string().trim().url('请输入有效的 OpenAI API URL！'),
+  openaiKey: z.string().trim().min(1, { message: '请在环境变量设置或前端传入openaiKey！' }),
+  openaiModel: z.string().trim().min(1, { message: '请在环境变量设置或前端传入openaiModel模型名称！' }),
   useLLM: z.boolean().default(true),
 })
 
@@ -71,12 +71,12 @@ export const validateLLM = (req: Request, res: Response, next: NextFunction) => 
     return
   }
   // read from env if not provided in request body
-  const { OPENAI_BASE_URL, OPENAI_KEY, MODEL_NAME } = process.env
+  const { OPENAI_BASE_URL, OPENAI_API_KEY, MODEL_NAME } = process.env
   if (!req.body?.openaiBaseUrl) {
     req.body.openaiBaseUrl = OPENAI_BASE_URL
   }
   if (!req.body?.openaiKey) {
-    req.body.openaiKey = OPENAI_KEY
+    req.body.openaiKey = OPENAI_API_KEY
   }
   if (!req.body?.openaiModel) {
     req.body.openaiModel = MODEL_NAME

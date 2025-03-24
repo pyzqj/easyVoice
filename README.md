@@ -15,11 +15,7 @@
 
 ## 核心功能 🌟
 
-<<<<<<< HEAD
-![generate](./images/generate.png)
-=======
 ![generate](./images/readme.generate.png)
->>>>>>> 45d344056fa586ff767a915449e516ae0b0da5d2
 
 - **文本转语音** 📝 ➡️ 🎵  
   支持将大型文本文件一键转换为语音，省时又高效！  
@@ -95,3 +91,11 @@ pnpm dev:root
 ```
 
 4. 打开浏览器，访问 `http://localhost:5173/`，开始体验吧！
+
+## FAQ:
+
+- **Q: 如何配置 OpenAI 相关信息?**
+- A: 在 `.env` 文件中添加 `OPENAI_API_KEY=your_api_key` `OPENAI_BASE_URL=openai_compatible_base_url` `MODEL_NAME=openai_model_name`。
+
+- **Q: 为什么我的配音效果不好？**
+- A: AI 推荐配音是通过大模型来决定不同的段落的配音参数，大模型的能力直接影响配音结果，你可以尝试更换不同的大模型，或者是用 Edge-TTS 选择固定的声音配音。
