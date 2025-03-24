@@ -171,7 +171,7 @@ async function generateWithoutLLM(
     return buildSegment(segment, params)
   } else {
     const buildSegments = segments.map((segment) => ({ ...params, text: segment }))
-    let result = buildSegmentList(segment, buildSegments, task)
+    let result = await buildSegmentList(segment, buildSegments, task)
     task?.updateProgress?.(task.id, 100)
     return result
   }
