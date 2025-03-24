@@ -163,6 +163,7 @@ export async function getVoiceList(req: Request, res: Response, next: NextFuncti
     logger.debug('Fetching voice list...')
     const voices = require('../llm/prompt/voice.json')
     res.json({
+      code: 200,
       data: voices,
       success: true,
     })
@@ -170,7 +171,8 @@ export async function getVoiceList(req: Request, res: Response, next: NextFuncti
     const errorMessage = err instanceof Error ? err.message : String(err)
     logger.error(`getVoiceList Error: ${errorMessage}`)
     res.status(500).json({
-      msg: errorMessage,
+      code: 500,
+      message: errorMessage,
       success: false,
     })
   }

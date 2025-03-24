@@ -56,12 +56,8 @@
           <div class="voice-mode-selector">
             <el-radio-group v-model="audioConfig.voiceMode" size="large">
               <el-radio-button label="preset">预设语音</el-radio-button>
-              <el-tooltip
-                content="通过AI推荐不同的角色语音，即将推出，尽请期待！"
-                placement="top"
-                effect="light"
-              >
-                <el-radio-button label="ai" disabled>
+              <el-tooltip content="通过AI推荐不同的角色语音！" placement="top" effect="light">
+                <el-radio-button label="ai">
                   AI 推荐
                   <Sparkles class="sparkles-icon" :size="24" :stroke-width="1.25" />
                 </el-radio-button>
@@ -314,6 +310,7 @@ const filteredVoices = computed(() => {
       const matchLanguage = voice.Name.startsWith(audioConfig.selectedLanguage)
       const matchGender =
         audioConfig.selectedGender === 'All' || voice.Gender === audioConfig.selectedGender
+      console.log(`matchLanguage, matchGender:`, matchLanguage, matchGender)
       return matchLanguage && matchGender
     })
   )
