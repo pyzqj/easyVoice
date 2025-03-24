@@ -1,10 +1,12 @@
+import { config } from './../config/index'
 import { NextFunction, Response, Request } from 'express'
 import { z } from 'zod'
 import { logger } from '../utils/logger'
+import { openai } from '../utils/openai'
 
 export const edgeSchema = z.object({
   text: z.string().trim().min(5, { message: '文本最少 5 字符！' }),
-  voice: z.string(),
+  voice: z.string().min(1),
   pitch: z.string().optional(),
   volume: z.string().optional(),
   rate: z.string().optional(),
@@ -14,8 +16,8 @@ export const edgeSchema = z.object({
 export const llmSchema = z.object({
   text: z.string().trim().min(5, { message: '文本最少 5 字符！' }),
   openaiBaseUrl: z.string().trim().url('请输入有效的 URL！'),
-  openaiKey: z.string().trim(),
-  openaiModel: z.string().trim(),
+  openaiKey: z.string().trim().min(1, { message: '请环境变量设置或前端传入openaiKey！' }),
+  openaiModel: z.string().trim().min(1, { message: '请环境变量设置或前端传入openaiModel模型名称！' }),
   useLLM: z.boolean().default(true),
 })
 
@@ -26,6 +28,11 @@ export type EdgeSchema = z.infer<typeof edgeSchema>
 const commonValidate = (req: Request, res: Response, next: NextFunction, schema: z.ZodTypeAny) => {
   try {
     schema.parse(req.body)
+    openai.config({
+      apiKey: req.body.openaiKey,
+      baseURL: req.body.openaiBaseUrl,
+      model: req.body.openaiModel,
+    })
     next()
   } catch (error) {
     if (error instanceof z.ZodError) {

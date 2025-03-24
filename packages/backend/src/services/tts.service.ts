@@ -14,6 +14,7 @@ import { MapLimitController } from '../controllers/concurrency.controller'
 import audioCacheInstance from './audioCache.service'
 import { mergeSubtitleFiles, SubtitleFile, SubtitleFiles } from '../utils/subtitle'
 import taskManager, { Task } from '../controllers/taskManager'
+import { AxiosError } from 'axios'
 
 // 错误消息枚举
 enum ErrorMessages {
@@ -81,11 +82,17 @@ async function generateWithLLM(
   voiceList: VoiceConfig[],
   lang: string
 ): Promise<TTSResult> {
-  const prompt = genSegment(lang, voiceList, segment.text)
-  logger.debug(`Prompt for LLM: ${prompt}`)
-  const llmResponse = await fetchLLMSegment(prompt)
-  // TODO: it not works now.
-  return runEdgeTTS({ ...(llmResponse as any), text: segment.text.trim() })
+  const { length, segments } = splitText(segment.text.trim())
+  if (length <= 1) {
+    const prompt = genSegment(lang, voiceList, segment.text)
+    logger.debug(`Prompt for LLM: ${prompt}`)
+    const llmResponse = await fetchLLMSegment(prompt)
+
+    return runEdgeTTS({ ...(llmResponse as any), text: segment.text.trim() })
+  } else {
+    logger.info('Splitting text into multiple segments:', segments)
+
+  }
 }
 
 /**
@@ -143,11 +150,10 @@ async function generateSingleSegment(
  */
 async function generateMultipleSegments(
   segment: Segment,
-  segments: string[],
-  params: TTSParams,
+  segments: BuildSegment[],
   task?: Task
 ): Promise<TTSResult> {
-  const { pitch, voice, rate, volume } = params
+
   const tmpDirName = segment.id.replace('.mp3', '')
   const tmpDirPath = path.resolve(AUDIO_DIR, tmpDirName)
   ensureDir(tmpDirPath)
@@ -158,7 +164,8 @@ async function generateMultipleSegments(
   const getProgress = () => {
     return Number(((handledLength / length) * 100).toFixed(2))
   }
-  const tasks = segments.map((text, index) => async () => {
+  const tasks = segments.map((segment, index) => async () => {
+    const { pitch, voice, rate, volume, text } = segment
     const output = path.resolve(tmpDirPath, `${index + 1}_splits.mp3`)
     const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
     const cache = await audioCacheInstance.getAudio(cacheKey)
@@ -232,8 +239,8 @@ async function fetchLLMSegment(prompt: string): Promise<any> {
       },
       { role: 'user', content: prompt },
     ],
-    temperature: 0.7,
-    max_tokens: 500,
+    // temperature: 0.7,
+    // max_tokens: 500,
     response_format: { type: 'json_object' },
   })
 

@@ -1,19 +1,22 @@
 interface Segment {
-  id: string;
-  text: string;
+  id: string
+  text: string
 }
 
 interface TTSResult {
-  audio: string;
-  srt: string;
+  audio: string
+  srt: string
   partial?: boolean
 }
 
 interface TTSParams {
-  text: string;
-  voice: string;
-  volume: string;
-  rate: string;
-  pitch: string;
-  output: string;
+  text: string
+  voice: string
+  volume: string
+  rate: string
+  pitch: string
+  output: string
+}
+type BuildSegment = TTSParams & {
+  text: string
 }

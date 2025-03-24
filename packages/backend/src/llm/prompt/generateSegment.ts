@@ -14,7 +14,7 @@ ${JSON.stringify(voiceList, null, 2)}
 - volume: 音量调整，百分比形式，默认 +0%（正常），如 "+20%"（增 20%），"-10%"（减 10%）。
 - pitch: 音调调整，默认 +0Hz（正常），如 "+10Hz"（提高 10 赫兹），"-5Hz"（降低 5 赫兹）。
 
-### 输出格式
+### 最终返回JSON格式
 [
   {
     "name": "specific voice",
@@ -23,8 +23,7 @@ ${JSON.stringify(voiceList, null, 2)}
     "volume": "音量",
     "pitch": "音调",
     "segment": "文本段落"
-  },
-  ...
+  }
 ]
 
 ### 待处理内容
@@ -46,17 +45,16 @@ ${JSON.stringify(voiceList, null, 2)}
 - volume: Volume adjustment, percentage form, default +0% (normal), such as "+20%" (increase 20%), "-10%" (decrease 10%).
 - pitch: pitch adjustment, default +0Hz (normal), such as "+10Hz" (increase 10 Hz), "-5Hz" (decrease 5 Hz).
 
-### Output format
+### Final Output JSON format
 [
-{
-"name": "specific voice",
-"character": "character name or narration",
-"rate": "speech rate",
-"volume": "volume",
-"pitch": "pitch",
-"segment": "text paragraph"
-},
-...
+  {
+  "name": "specific voice",
+  "character": "character name or narration",
+  "rate": "speech rate",
+  "volume": "volume",
+  "pitch": "pitch",
+  "segment": "text paragraph"
+  }
 ]
 
 ### Content to be processed

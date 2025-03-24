@@ -169,11 +169,16 @@
               </el-form-item>
 
               <el-form-item label="模型">
-                <el-select v-model="audioConfig.openaiModel" placeholder="选择模型" clearable>
+                <el-input
+                  v-model="audioConfig.openaiModel"
+                  clearable
+                  placeholder="gpt-4o..."
+                />
+                <!-- <el-select v-model="audioConfig.openaiModel" placeholder="选择模型" clearable>
                   <el-option label="gpt-3.5-turbo" value="gpt-3.5-turbo" />
                   <el-option label="gpt-4" value="gpt-4" />
                   <el-option label="gpt-4-turbo" value="gpt-4-turbo" />
-                </el-select>
+                </el-select> -->
               </el-form-item>
             </el-form>
           </div>

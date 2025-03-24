@@ -1,4 +1,6 @@
+import { AxiosError } from 'axios'
 import { MODEL_NAME, OPENAI_BASE_URL, OPENAI_KEY } from '../config'
+import { logger } from './logger'
 import { fetcher } from './request'
 
 // 配置接口定义
@@ -21,7 +23,10 @@ export function createOpenAIClient() {
     timeout: 60000,
     apiKey: OPENAI_KEY,
   }
-
+  logger.debug(`init openai with: `, {
+    ...currentConfig,
+    apiKey: currentConfig?.apiKey?.slice(0, 10) + '***',
+  })
   // 设置 headers
   const getHeaders = () => ({
     Authorization: `Bearer ${currentConfig.apiKey}`,
@@ -44,14 +49,14 @@ export function createOpenAIClient() {
       }
 
       const response = await fetcher.post<ChatCompletionResponse>(
-        `${mergedConfig.baseURL}/chat/completions`,
+        `${mergedConfig.baseURL}${mergedConfig.baseURL?.endsWith('/') ? '' : '/'}chat/completions`,
         {
           model: request.model || mergedConfig.model,
-          messages: request.messages,
           temperature: request.temperature ?? 1.0,
           max_tokens: request.max_tokens,
           top_p: request.top_p ?? 1.0,
           stream: request.stream ?? false,
+          ...request,
         },
         {
           headers: getHeaders(),
@@ -62,6 +67,9 @@ export function createOpenAIClient() {
       return response.data
     } catch (error) {
       console.log(error)
+      if (error instanceof AxiosError) {
+        console.log(`createChatCompletion`, error.response?.data?.error)
+      }
       throw new Error(
         `Chat completion request failed: ${error instanceof Error ? error.message : String(error)}`
       )
@@ -98,6 +106,7 @@ export function createOpenAIClient() {
       ...currentConfig,
       ...newConfig,
     }
+    logger.debug(`openai currentConfig:`, currentConfig)
   }
 
   return {
