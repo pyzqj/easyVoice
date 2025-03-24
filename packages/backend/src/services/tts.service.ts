@@ -4,7 +4,7 @@ import ffmpeg from 'fluent-ffmpeg'
 import { runEdgeTTS } from '../utils/spawn'
 import { AUDIO_DIR, STATIC_DOMAIN } from '../config'
 import { logger } from '../utils/logger'
-import { genSegment } from '../llm/prompt/generateSegment'
+import { getPrompt } from '../llm/prompt/generateSegment'
 import { ensureDir, generateId, getLangConfig, readJson } from '../utils'
 import { openai } from '../utils/openai'
 import { splitText } from './text.service'
@@ -84,14 +84,19 @@ async function generateWithLLM(
 ): Promise<TTSResult> {
   const { length, segments } = splitText(segment.text.trim())
   if (length <= 1) {
-    const prompt = genSegment(lang, voiceList, segment.text)
+    const prompt = getPrompt(lang, voiceList, segment.text)
     logger.debug(`Prompt for LLM: ${prompt}`)
     const llmResponse = await fetchLLMSegment(prompt)
+    let llmSegments = llmResponse?.result || []
+    if (!Array.isArray(llmSegments)) {
+      throw new Error(
+        'LLM response is not an array, please switch to Edge TTS mode or use another model'
+      )
+    }
 
     return runEdgeTTS({ ...(llmResponse as any), text: segment.text.trim() })
   } else {
     logger.info('Splitting text into multiple segments:', segments)
-
   }
 }
 
@@ -107,65 +112,65 @@ async function generateWithoutLLM(
   const { length, segments } = splitText(text)
 
   if (length <= 1) {
-    return generateSingleSegment(segment, params, task)
+    return buildSegment(segment, params)
   } else {
-    return generateMultipleSegments(segment, segments, params, task)
+    const buildSegments = segments.map((segment) => ({ ...params, text: segment }))
+    return buildSegmentList(segment, buildSegments, task)
   }
 }
 
 /**
- * 生成单个片段的 TTS
+ * 生成单个片段的音频和字幕
  */
-async function generateSingleSegment(
+async function buildSegment(
   segment: Segment,
   params: TTSParams,
-  task?: Task
+  dir: string = ''
 ): Promise<TTSResult> {
+  const { id, text } = segment
   const { pitch, voice, rate, volume } = params
-  const output = path.resolve(AUDIO_DIR, segment.id)
-  task?.updateProgress?.(task.id, 10)
+  const output = path.resolve(AUDIO_DIR, dir, id)
   const result = await generateSingleVoice({
-    text: segment.text,
+    text,
     pitch,
     voice,
     rate,
     volume,
     output,
   })
-  task?.updateProgress?.(task.id, 80)
   logger.debug('Generated single segment:', result)
   const jsonPath = `${output}.json`
   const srtPath = output.replace('.mp3', '.srt')
   await generateSrt(jsonPath, srtPath)
   logger.debug('Generated SRT file:', srtPath)
-  task?.updateProgress?.(task.id, 100)
   return {
-    audio: `${STATIC_DOMAIN}/${segment.id}`,
-    srt: `${STATIC_DOMAIN}/${segment.id.replace('.mp3', '.srt')}`,
+    audio: `${STATIC_DOMAIN}/${path.join(dir, id)}`,
+    srt: `${STATIC_DOMAIN}/${path.join(dir, id.replace('.mp3', '.srt'))}`,
   }
 }
 
 /**
  * 生成多个片段并合并的 TTS
  */
-async function generateMultipleSegments(
+async function buildSegmentList(
   segment: Segment,
   segments: BuildSegment[],
   task?: Task
 ): Promise<TTSResult> {
-
-  const tmpDirName = segment.id.replace('.mp3', '')
+  const { id } = segment
+  const tmpDirName = id.replace('.mp3', '')
   const tmpDirPath = path.resolve(AUDIO_DIR, tmpDirName)
-  ensureDir(tmpDirPath)
+  await ensureDir(tmpDirPath)
 
   const fileList: string[] = []
   const length = segments.length
   let handledLength = 0
+
   const getProgress = () => {
     return Number(((handledLength / length) * 100).toFixed(2))
   }
   const tasks = segments.map((segment, index) => async () => {
-    const { pitch, voice, rate, volume, text } = segment
+    const { text, pitch, voice, rate, volume } = segment
     const output = path.resolve(tmpDirPath, `${index + 1}_splits.mp3`)
     const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
     const cache = await audioCacheInstance.getAudio(cacheKey)
@@ -179,6 +184,7 @@ async function generateMultipleSegments(
     fileList.push(result.audio)
     handledLength++
     task?.updateProgress?.(task.id, getProgress())
+    const params = { text, pitch, voice, rate, volume }
     await audioCacheInstance.setAudio(cacheKey, { ...params, ...result })
     return result
   })
@@ -188,7 +194,7 @@ async function generateMultipleSegments(
     logger.warn(`Partial result detected, some splits generated audio failed!`, results)
     partial = true
   }
-  const outputFile = path.resolve(AUDIO_DIR, segment.id)
+  const outputFile = path.resolve(AUDIO_DIR, id)
   logger.debug(`Concatenating audio files from ${tmpDirPath} to ${outputFile}`)
   await concatDirAudio({ inputDir: tmpDirPath, fileList, outputFile })
   await concatDirSrt({ inputDir: tmpDirPath, fileList, outputFile })
@@ -198,8 +204,8 @@ async function generateMultipleSegments(
   )
 
   return {
-    audio: `${STATIC_DOMAIN}/${segment.id}`,
-    srt: `${STATIC_DOMAIN}/${segment.id.replace('.mp3', '.srt')}`,
+    audio: `${STATIC_DOMAIN}/${id}`,
+    srt: `${STATIC_DOMAIN}/${id.replace('.mp3', '.srt')}`,
     partial,
   }
 }

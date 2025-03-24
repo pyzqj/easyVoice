@@ -77,7 +77,7 @@ export function generateId(voice: string, text: string) {
   const now = Date.now()
   return `${voice}-${safeFileName(text).slice(0, 10)}-${now}.mp3`
 }
-function safeFileName(fileName: string) {
+export function safeFileName(fileName: string) {
   return fileName.replace(/[/\\?%*:|"<>\r\n\s#]/g, '-')
 }
 

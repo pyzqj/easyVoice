@@ -60,7 +60,7 @@ ${JSON.stringify(voiceList, null, 2)}
 ### Content to be processed
 ${text}
 `
-export function genSegment(lang = 'cn', voiceList: VoiceConfig[], text: string) {
+export function getPrompt(lang = 'cn', voiceList: VoiceConfig[], text: string) {
   switch (lang) {
     case 'zh':
     case 'cn':

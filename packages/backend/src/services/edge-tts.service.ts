@@ -112,9 +112,7 @@ export const generateSrt = async (jsonPath: string, srtPath: string, deleteJson 
     const srtTxt = await jsonToSrt(jsonPath)
     await fs.writeFile(srtPath, srtTxt, 'utf8')
     console.log(`SRT file created at ${srtPath}`)
-    if (deleteJson) {
-      await fs.unlink(jsonPath)
-    }
+    if (deleteJson) await fs.unlink(jsonPath)
     return srtPath
   } catch (err) {
     console.error(`Error reading JSON file at ${jsonPath}:`, err)
