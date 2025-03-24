@@ -40,14 +40,14 @@ export async function generateTTS(params: Required<EdgeSchema>, task?: Task): Pr
     return cache
   }
 
-  const segment: Segment = { id: generateId(voice, text), text }
+  const segment: Segment = { id: generateId(useLLM ? 'aigen-' : voice, text), text }
   const { lang, voiceList } = await getLangConfig(segment.text)
   logger.debug(`Language detected lang and voice list: `, [lang, voiceList])
   validateLangAndVoice(lang, voice)
 
   let result: TTSResult
   if (useLLM) {
-    result = await generateWithLLM(segment, voiceList, lang)
+    result = await generateWithLLM(segment, voiceList, lang, task)
   } else {
     result = await generateWithoutLLM(
       segment,
@@ -80,23 +80,48 @@ export async function generateTTS(params: Required<EdgeSchema>, task?: Task): Pr
 async function generateWithLLM(
   segment: Segment,
   voiceList: VoiceConfig[],
-  lang: string
+  lang: string,
+  task?: Task
 ): Promise<TTSResult> {
-  const { length, segments } = splitText(segment.text.trim())
+  const { text } = segment
+  const { length, segments } = splitText(text.trim())
   if (length <= 1) {
-    const prompt = getPrompt(lang, voiceList, segment.text)
+    const prompt = getPrompt(lang, voiceList, segments[0])
     logger.debug(`Prompt for LLM: ${prompt}`)
     const llmResponse = await fetchLLMSegment(prompt)
-    let llmSegments = llmResponse?.result || []
+    let llmSegments = llmResponse?.result || llmResponse?.segments || []
     if (!Array.isArray(llmSegments)) {
       throw new Error(
         'LLM response is not an array, please switch to Edge TTS mode or use another model'
       )
     }
-
-    return runEdgeTTS({ ...(llmResponse as any), text: segment.text.trim() })
+    const result = await buildSegmentList(
+      segment,
+      llmSegments
+        .filter((segment) => segment.text)
+        .map((segment) => ({
+          ...segment,
+          voice: segment.name,
+        }))
+    )
+    return result
   } else {
-    logger.info('Splitting text into multiple segments:', segments)
+    logger.info('Splitting text into multiple segments:', segments.length)
+    let finalSegments = []
+    for (let seg of segments) {
+      const prompt = getPrompt(lang, voiceList, seg)
+      logger.debug(`Prompt for LLM: ${prompt}`)
+      const llmResponse = await fetchLLMSegment(prompt)
+      let llmSegments = llmResponse?.result || []
+      if (!Array.isArray(llmSegments)) {
+        throw new Error(
+          'LLM response is not an array, please switch to Edge TTS mode or use another model'
+        )
+      }
+      const result = await buildSegmentList(segment, llmSegments)
+      finalSegments.push(result)
+    }
+    console.log(finalSegments)
   }
 }
 
@@ -157,15 +182,21 @@ async function buildSegmentList(
   segments: BuildSegment[],
   task?: Task
 ): Promise<TTSResult> {
-  const { id } = segment
-  const tmpDirName = id.replace('.mp3', '')
-  const tmpDirPath = path.resolve(AUDIO_DIR, tmpDirName)
-  await ensureDir(tmpDirPath)
-
   const fileList: string[] = []
   const length = segments.length
   let handledLength = 0
 
+  if (!length) {
+    throw new Error(`No segments found for task ${task?.id || 'unknown'}!`)
+  }
+  const { id } = segment
+  const tmpDirName = id.replace('.mp3', '')
+  const tmpDirPath = path.resolve(AUDIO_DIR, tmpDirName)
+  await ensureDir(tmpDirPath)
+  await fs.writeFile(
+    path.resolve(tmpDirPath, 'ai-segments.json'),
+    JSON.stringify(segments, null, 2)
+  )
   const getProgress = () => {
     return Number(((handledLength / length) * 100).toFixed(2))
   }

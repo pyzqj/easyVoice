@@ -3,7 +3,9 @@ const cnTemplate = (voiceList: VoiceConfig[], text: string) => `
 1. 将文字按场景、角色、旁白分割。
 2. 根据角色的性格、对话语气，从声音配置中推荐合适的“Name”。
 3. 为每段推荐合理的“rate”（语速）、“volume”（音量）、“pitch”（音调）参数。
-4. 返回结果为 JSON 格式。
+4. 请不要遗漏语句以及保证语句的顺序。
+5. 返回结果为 JSON 格式。
+
 
 ### 声音配置
 ${JSON.stringify(voiceList, null, 2)}
@@ -15,16 +17,18 @@ ${JSON.stringify(voiceList, null, 2)}
 - pitch: 音调调整，默认 +0Hz（正常），如 "+10Hz"（提高 10 赫兹），"-5Hz"（降低 5 赫兹）。
 
 ### 最终返回JSON格式
-[
-  {
-    "name": "specific voice",
-    "charactor": "角色名或narration",
-    "rate": "语速",
-    "volume": "音量",
-    "pitch": "音调",
-    "segment": "文本段落"
-  }
-]
+{
+  segments: [
+    {
+      name: 'specific voice',
+      charactor: '角色名或narration',
+      rate: '语速',
+      volume: '音量',
+      pitch: '音调',
+      text: '文本段落',
+    },
+  ],
+}
 
 ### 待处理内容
 ${text}
@@ -34,7 +38,8 @@ I hope you can provide optimization suggestions for text dubbing based on the fo
 1. Divide the text by scene, role, and narration.
 2. Recommend a suitable "Name" from the sound configuration based on the character's personality and dialogue tone.
 3. Recommend reasonable "rate" (speech speed), "volume" (volume), and "pitch" (pitch) parameters for each paragraph.
-4. The result is returned in JSON format.
+4. Please do not omit text and ensure the order of text.
+5. The result is returned in JSON format.
 
 ### Sound configuration
 ${JSON.stringify(voiceList, null, 2)}
@@ -46,16 +51,19 @@ ${JSON.stringify(voiceList, null, 2)}
 - pitch: pitch adjustment, default +0Hz (normal), such as "+10Hz" (increase 10 Hz), "-5Hz" (decrease 5 Hz).
 
 ### Final Output JSON format
-[
-  {
-  "name": "specific voice",
-  "character": "character name or narration",
-  "rate": "speech rate",
-  "volume": "volume",
-  "pitch": "pitch",
-  "segment": "text paragraph"
-  }
-]
+{
+  segments: [
+    {
+      name: 'specific voice',
+      charactor: '角色名或narration',
+      rate: '语速',
+      volume: '音量',
+      pitch: '音调',
+      text: '文本段落',
+    },
+  ],
+}
+
 
 ### Content to be processed
 ${text}

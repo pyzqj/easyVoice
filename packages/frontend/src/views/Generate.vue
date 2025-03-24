@@ -56,7 +56,7 @@
           <div class="voice-mode-selector">
             <el-radio-group v-model="audioConfig.voiceMode" size="large">
               <el-radio-button label="preset">预设语音</el-radio-button>
-              <el-tooltip content="通过AI推荐不同的角色语音！" placement="top" effect="light">
+              <el-tooltip content="通过AI推荐不同的角色语音！(实验性功能，结果取决于模型能力！)" placement="top" effect="light">
                 <el-radio-button label="ai">
                   AI 推荐
                   <Sparkles class="sparkles-icon" :size="24" :stroke-width="1.25" />
