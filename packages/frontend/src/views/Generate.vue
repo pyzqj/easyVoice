@@ -67,7 +67,7 @@
 
           <!-- 预设语音选择 -->
           <div v-if="audioConfig.voiceMode === 'preset'" class="voice-selector">
-            <el-form label-position="top">
+            <el-form label-position="top" size="default">
               <el-form-item label="语言">
                 <el-select
                   v-model="audioConfig.selectedLanguage"
@@ -153,6 +153,7 @@
               <el-form-item label="OpenAI API URL">
                 <el-input
                   v-model="audioConfig.openaiBaseUrl"
+                  clearable
                   placeholder="https://api.openai.com/v1"
                 />
               </el-form-item>
@@ -162,12 +163,13 @@
                   v-model="audioConfig.openaiKey"
                   type="password"
                   show-password
+                  clearable
                   placeholder="sk-..."
                 />
               </el-form-item>
 
               <el-form-item label="模型">
-                <el-select v-model="audioConfig.openaiModel" placeholder="选择模型">
+                <el-select v-model="audioConfig.openaiModel" placeholder="选择模型" clearable>
                   <el-option label="gpt-3.5-turbo" value="gpt-3.5-turbo" />
                   <el-option label="gpt-4" value="gpt-4" />
                   <el-option label="gpt-4-turbo" value="gpt-4-turbo" />
@@ -324,7 +326,7 @@ const canGenerate = computed(() => {
   if (voiceMode === 'preset') {
     return !!selectedVoice
   } else {
-    return !!openaiBaseUrl && !!openaiKey && !!openaiModel
+    return !!openaiBaseUrl && !!openaiKey && !!openaiModel || true
   }
 })
 
