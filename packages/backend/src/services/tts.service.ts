@@ -9,7 +9,7 @@ import { ensureDir, generateId, getLangConfig, readJson } from '../utils'
 import { openai } from '../utils/openai'
 import { splitText } from './text.service'
 import { generateSingleVoice, generateSrt } from './edge-tts.service'
-import { Generate } from '../schema/generate'
+import { EdgeSchema } from '../schema/generate'
 import { MapLimitController } from '../controllers/concurrency.controller'
 import audioCacheInstance from './audioCache.service'
 import { mergeSubtitleFiles, SubtitleFile, SubtitleFiles } from '../utils/subtitle'
@@ -29,7 +29,7 @@ enum ErrorMessages {
 /**
  * 生成文本转语音 (TTS) 的音频和字幕
  */
-export async function generateTTS(params: Required<Generate>, task?: Task): Promise<TTSResult> {
+export async function generateTTS(params: Required<EdgeSchema>, task?: Task): Promise<TTSResult> {
   const { text, pitch, voice, rate, volume, useLLM } = params
   // 检查缓存
   const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
@@ -226,7 +226,10 @@ function validateLangAndVoice(lang: string, voice: string): void {
 async function fetchLLMSegment(prompt: string): Promise<any> {
   const response = await openai.createChatCompletion({
     messages: [
-      { role: 'system', content: 'You are a helpful assistant.' },
+      {
+        role: 'system',
+        content: 'You are a helpful assistant. And you can return valid json object',
+      },
       { role: 'user', content: prompt },
     ],
     temperature: 0.7,

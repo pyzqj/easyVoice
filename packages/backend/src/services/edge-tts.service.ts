@@ -1,5 +1,5 @@
 import fs from 'fs/promises'
-import { Generate } from '../schema/generate'
+import { EdgeSchema } from '../schema/generate'
 import { EdgeTTS } from '../lib/node-edge-tts/edge-tts-fixed'
 import { fileExist, readJson, safeRunWithRetry } from '../utils'
 
@@ -10,7 +10,7 @@ export async function runEdgeTTS({
   voice,
   rate,
   output,
-}: Omit<Generate, 'useLLM'> & { output: string }) {
+}: Omit<EdgeSchema, 'useLLM'> & { output: string }) {
   const lang = /([a-zA-Z]{2,5}-[a-zA-Z]{2,5}\b)/.exec(voice)?.[1]
   const tts = new EdgeTTS({
     voice,
@@ -37,7 +37,7 @@ export const generateSingleVoice = async ({
   voice,
   rate,
   output,
-}: Omit<Generate, 'useLLM'> & { output: string }) => {
+}: Omit<EdgeSchema, 'useLLM'> & { output: string }) => {
   let result: TTSResult = {
     audio: '',
     srt: '',

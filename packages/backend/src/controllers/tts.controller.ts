@@ -4,9 +4,9 @@ import { logger } from '../utils/logger'
 import path from 'path'
 import fs from 'fs/promises'
 import { ALLOWED_EXTENSIONS, AUDIO_DIR } from '../config'
-import { Generate } from '../schema/generate'
+import { EdgeSchema } from '../schema/generate'
 import taskManager from '../controllers/taskManager'
-function formatBody({ text, pitch, voice, volume, rate, useLLM }: Generate) {
+function formatBody({ text, pitch, voice, volume, rate, useLLM }: EdgeSchema) {
   const positivePercent = (value: string | undefined) => {
     if (value === '0%' || value === '0' || value === undefined) return '+0%'
     return value

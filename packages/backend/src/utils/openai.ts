@@ -1,23 +1,32 @@
 import { MODEL_NAME, OPENAI_BASE_URL, OPENAI_KEY } from '../config'
 import { fetcher } from './request'
 
+// 配置接口定义
+interface OpenAIConfig {
+  baseURL?: string
+  model?: string
+  timeout: number
+  apiKey?: string
+}
+
 /**
  * 创建 OpenAI 客户端实例
- * @param config OpenAI 配置
  * @returns OpenAI 工具函数集合
  */
 export function createOpenAIClient() {
-  const defaultConfig = {
+  // 默认配置
+  let currentConfig: OpenAIConfig = {
     baseURL: OPENAI_BASE_URL,
     model: MODEL_NAME,
     timeout: 60000,
+    apiKey: OPENAI_KEY,
   }
 
-  // 设置默认 headers
-  const defaultHeaders = {
-    Authorization: `Bearer ${OPENAI_KEY}`,
+  // 设置 headers
+  const getHeaders = () => ({
+    Authorization: `Bearer ${currentConfig.apiKey}`,
     'Content-Type': 'application/json',
-  }
+  })
 
   /**
    * 创建 Chat Completion
@@ -30,7 +39,7 @@ export function createOpenAIClient() {
   ): Promise<ChatCompletionResponse> {
     try {
       const mergedConfig = {
-        ...defaultConfig,
+        ...currentConfig,
         ...customConfig,
       }
 
@@ -45,7 +54,7 @@ export function createOpenAIClient() {
           stream: request.stream ?? false,
         },
         {
-          headers: defaultHeaders,
+          headers: getHeaders(),
           timeout: mergedConfig.timeout,
         }
       )
@@ -65,11 +74,11 @@ export function createOpenAIClient() {
   async function getModels(): Promise<{ data: { id: string }[] }> {
     try {
       const response = await fetcher.get<{ data: { id: string }[] }>(
-        `${defaultConfig.baseURL}/models`,
+        `${currentConfig.baseURL}/models`,
         {},
         {
-          headers: defaultHeaders,
-          timeout: defaultConfig.timeout,
+          headers: getHeaders(),
+          timeout: currentConfig.timeout,
         }
       )
       return response.data
@@ -80,33 +89,52 @@ export function createOpenAIClient() {
     }
   }
 
+  /**
+   * 动态更新配置
+   * @param newConfig 新的配置参数
+   */
+  function config(newConfig: Partial<OpenAIConfig>) {
+    currentConfig = {
+      ...currentConfig,
+      ...newConfig,
+    }
+  }
+
   return {
     createChatCompletion,
     getModels,
+    config,
   }
 }
+
+// 默认实例
 export const openai = createOpenAIClient()
-// 使用示例
+
+// // 使用示例
 // async function example() {
-//   // 创建客户端实例
-//   const openai = createOpenAIClient({
-//     apiKey: 'your-api-key-here',
-//     baseURL: 'https://api.openai.com/v1', // 可替换为其他兼容服务
-//   });
+//   // 使用默认配置
+//   const client = createOpenAIClient()
 
 //   try {
-//     // 创建对话
-//     const response = await openai.createChatCompletion({
-//       messages: [
-//         { role: 'system', content: 'You are a helpful assistant.' },
-//         { role: 'user', content: 'Hello, how can you help me today?' },
-//       ],
-//       temperature: 0.7,
-//       max_tokens: 500,
-//     });
+//     // 使用初始配置
+//     const initialResponse = await client.createChatCompletion({
+//       messages: [{ role: 'user', content: 'Hello' }],
+//     })
+//     console.log('Initial response:', initialResponse.choices[0].message.content)
 
-//     console.log(response.choices[0].message.content);
+//     // 动态修改配置
+//     client.config({
+//       baseURL: 'https://custom-api.com/v1',
+//       apiKey: 'new-api-key',
+//       model: 'new-model',
+//     })
+
+//     // 使用新配置
+//     const updatedResponse = await client.createChatCompletion({
+//       messages: [{ role: 'user', content: 'Hi with new config' }],
+//     })
+//     console.log('Updated response:', updatedResponse.choices[0].message.content)
 //   } catch (error) {
-//     console.error('Error:', error);
+//     console.error('Error:', error)
 //   }
 // }
