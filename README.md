@@ -1,15 +1,23 @@
 # EasyVoice 🎙️
 
-## 体验一下
+## 在线体验
 
 [easyvoice.ioplus.tech](https://easyvoice.ioplus.tech)
 
 ## 项目简介 ✨  
 
 ![Home](./images/readme.home.png)
-**EasyVoice** 是一个开源的智能小说转语音解决方案 🎧，旨在帮助用户轻松将文本内容转换为高质量的语音输出。本项目利用先进的edge-tts语音技术与大模型 🤖，为用户带来自然流畅的语音体验，尤其适合将小说、文章等长篇内容转化为有声读物 📖。
+**EasyVoice** 是一个开源的智能文本/小说转语音解决方案，旨在帮助用户轻松将文本内容转换为高质量的语音输出。  
 
-无论你是想听一本小说，还是为自己的创作配音，EasyVoice 都能成为你的得力助手！🚀
+- **一键生成语音和字幕**
+
+- **AI 智能推荐配音**
+
+- **完全免费，无时长、无字数限制**
+
+- **支持将 10 万字以上的小说一键转为有声书！**
+
+无论你是想听小说、为创作配音，还是打造个性化音频，EasyVoice 都是你的最佳助手！
 
 **你可以轻松的将 EasyVoice 部署到你的云服务器或者本地！**
 
@@ -18,13 +26,13 @@
 ![generate](./images/readme.generate.png)
 
 - **文本转语音** 📝 ➡️ 🎵  
-  支持将大型文本文件一键转换为语音，省时又高效！  
+  一键将大段文本转为语音，高效又省时。
 - **多语言支持** 🌍  
-  支持中文、英文等多种语言，畅享全球化的语音体验。  
+  支持中文、英文等多种语言。  
 - **字幕支持** 🌍  
   自动生成字幕文件，方便视频制作和字幕翻译。  
 - **角色配音** 🎭  
-  提供多种声音特性，完美适配不同角色的配音需求。  
+  提供多种声音选项，完美适配不同角色。  
 - **自定义设置** ⚙️  
   可调整语速、音调等参数，打造专属语音风格。  
 - **AI 推荐** 🧠  
@@ -38,30 +46,46 @@ EasyVoice 采用现代化的技术栈打造，稳定又高效：
 
 - **前端**：Vue 3 + TypeScript + Element Plus 🌐  
 - **后端**：Node.js + Express + TypeScript ⚡  
-- **语音合成**：Microsoft Azure TTS + OpenAI(OpenAI Compatible) + ffmpeg 🎤  
+- **语音合成**：Microsoft Azure TTS + OpenAI(OpenAI 兼容即可) + ffmpeg 🎤  
 - **部署**：Node.js + Docker + Docker Compose 🐳  
 
 ## 快速开始 🚀
 
-1. 通过 docker 运行
+### 1. 通过 docker 运行
+
+带 AI 配音推荐：
 
 ```bash
 docker run -d \
   --restart unless-stopped \
   --name easyvoice \
   -p 3000:3000 \
-  -v audio:/app/audio \
+  -v $(pwd)/audio:/app/audio \
   -e OPENAI_BASE_URL=https://api.openai.com/v1 \
   -e OPENAI_KEY=your_openai_key_here \
   -e MODEL_NAME=gpt-4o-mini \
   cosin2077/easyvoice:latest
 ```
 
-2. 直接运行项目
+不使用 AI 配音推荐：
 
 ```bash
+docker run -d \
+  --restart unless-stopped \
+  --name easyvoice \
+  -p 3000:3000 \
+  -v $(pwd)/audio:/app/audio \
+  cosin2077/easyvoice:latest
+
+```
+
+### 2. 本地运行项目
+
+```bash
+# 克隆仓库
 git clone git@github.com:cosin2077/easyVoice.git
 cd easyVoice
+# 安装依赖
 pnpm i -r
 
 # 开发模式
@@ -94,32 +118,20 @@ pnpm dev
 
 4. 打开浏览器，访问 `http://localhost:5173/`，开始体验吧！
 
-## 环境变量
+## 环境变量 ⚙️
 
-- PORT=3000 服务端口
-- OPENAI_BASE_URL=<https://api.openai.com/v1> openai compatible base url
-- OPENAI_API_KEY=sk-or-*** openai key
-- MODEL_NAME=gpt-4o-mini 模型名称
-- RATE_LIMIT_WINDOW=1 生产模式下速率限制窗口大小
-- RATE_LIMIT=10 生产模式下速率限制
-- EDGE_API_LIMIT=3 Edge-TTS API 并发
+| 变量名              | 默认值                         | 描述                          |
+|--------------------|-------------------------------|------------------------------|
+| `PORT`             | `3000`                        | 服务端口                      |
+| `OPENAI_BASE_URL`  | `https://api.openai.com/v1`   | OpenAI 兼容 API 地址          |
+| `OPENAI_API_KEY`   | -                             | OpenAI API Key               |
+| `MODEL_NAME`       | -                             | 使用的模型名称                 |
+| `RATE_LIMIT_WINDOW`| `1`                           | 速率限制窗口大小（分钟）         |
+| `RATE_LIMIT`       | `10`                          | 速率限制次数                   |
+| `EDGE_API_LIMIT`   | `3`                           | Edge-TTS API 并发数           |
 
-所有环境变量均可以在项目根目录`.env`或者 `packages/backend/.env` 中配置，优先级为 `packages/backend/.env > .env`。
-
-如果你通过 docker 运行，可以通过 -e 指定环境变量
-
-```bash
-docker run -d \
-  --restart unless-stopped \
-  --name easyvoice \
-  -p 3000:3000 \
-  -v $(pwd)/audio:/app/audio \
-  -e OPENAI_BASE_URL=https://api.openai.com/v1 \
-  -e OPENAI_KEY=your_openai_key_here \
-  -e MODEL_NAME=gpt-4o-mini \
-  -e EDGE_API_LIMIT=2 \
-  cosin2077/easyvoice:latest
-```
+- **配置文件**：可在 `.env` 或 `packages/backend/.env` 中设置，优先级为 `packages/backend/.env > .env`。  
+- **Docker 配置**：通过 `-e` 参数传入环境变量，如上文示例。
 
 ## FAQ
 
@@ -134,4 +146,6 @@ docker run -d \
 
 ## Tips
 
-**目前 EasyVoice 主要通过 Edge-TTS API 提供免费语音合成，后续可能支持接入官方 API, 谷歌 TTS, 克隆配音服务等。**
+- 当前主要通过 Edge-TTS API 提供免费语音合成。  
+
+- 未来计划支持官方 API、Google TTS、声音克隆等功能。
