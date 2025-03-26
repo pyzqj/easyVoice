@@ -12,7 +12,7 @@ import { EdgeSchema } from '../schema/generate'
 import { MapLimitController } from '../controllers/concurrency.controller'
 import audioCacheInstance from './audioCache.service'
 import { mergeSubtitleFiles, SubtitleFile, SubtitleFiles } from '../utils/subtitle'
-import taskManager, { Task } from '../controllers/taskManager'
+import taskManager, { Task } from '../utils/taskManager'
 
 // 错误消息枚举
 enum ErrorMessages {

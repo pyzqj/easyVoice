@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import { memoryUsage } from 'process'
-import { formatFileSize } from '../utils'
+import { formatFileSize } from '.'
 
 interface Options {
   prefix?: string
@@ -134,9 +134,9 @@ class TaskManager {
   getTaskStats() {
     const tasks = Array.from(this.tasks.values())
     const memory = {
-      heapUsed: formatFileSize(process.memoryUsage().heapUsed),
-      heapTotal: formatFileSize(process.memoryUsage().heapTotal),
-      rss: formatFileSize(process.memoryUsage().rss),
+      heapUsed: formatFileSize(memoryUsage().heapUsed),
+      heapTotal: formatFileSize(memoryUsage().heapTotal),
+      rss: formatFileSize(memoryUsage().rss),
     }
     const stats = {
       totalTasks: this.getTaskLength(),
