@@ -1,4 +1,3 @@
-version: '3'
 services:
   easyvoice:
     image: cosincox/easyvoice:latest

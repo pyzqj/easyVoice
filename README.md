@@ -67,7 +67,7 @@ docker run -d \
   cosincox/easyvoice:latest
 ```
 
-不使用 AI 配音推荐：
+不使用 AI 配音：
 
 ```bash
 docker run -d \
@@ -77,6 +77,12 @@ docker run -d \
   -v $(pwd)/audio:/app/audio \
   cosincox/easyvoice:latest
 
+```
+
+or 使用 Docker Compose 一键运行！
+
+```bash
+docker-compose up -d
 ```
 
 ### 2. 本地运行项目（请先确保已安装 Node.js 环境，参考：[安装 Node.js](https://zhuanlan.zhihu.com/p/442215189)）
