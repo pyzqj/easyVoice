@@ -8,9 +8,9 @@
 </template>
 
 <script setup lang="ts">
-import { defineComponent } from "vue";
-import Footer from "@/components/Footer.vue";
-defineComponent({ name: "App" });
+import { defineComponent } from 'vue'
+import Footer from '@/components/Footer.vue'
+defineComponent({ name: 'App' })
 </script>
 
 <style scoped>
@@ -18,7 +18,12 @@ defineComponent({ name: "App" });
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   padding: 0 20px;
-  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
   color: #333;
+}
+@media (max-width: 768px) {
+  .home-container {
+    padding: 0 10px;
+  }
 }
 </style>

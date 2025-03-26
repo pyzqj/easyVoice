@@ -264,7 +264,7 @@ defineExpose({
 <style scoped>
 .audio-player {
   margin: 20px auto;
-  width: 300px;
+  max-width: 300px;
   padding: 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.8);

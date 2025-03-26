@@ -133,13 +133,6 @@ const triggerConfettiAndGo = () => {
 </script>
 
 <style scoped lang="less">
-.home-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 0 20px;
-  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #333;
-}
 
 /* Header */
 .header {
