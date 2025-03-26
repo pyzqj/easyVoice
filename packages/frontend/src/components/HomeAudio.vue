@@ -426,7 +426,7 @@ defineExpose({
   position: absolute;
   top: 0;
   left: 0;
-  /* transition: width 0.2s ease; */
+  transition: width 0.2s ease;
 }
 
 .progress-thumb {
