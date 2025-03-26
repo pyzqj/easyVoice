@@ -6,3 +6,4 @@
 .env
 **/audio
 **analysis**
+run.test.sh

@@ -56,7 +56,11 @@
           <div class="voice-mode-selector">
             <el-radio-group v-model="audioConfig.voiceMode" size="large">
               <el-radio-button label="preset">预设语音</el-radio-button>
-              <el-tooltip content="通过AI推荐不同的角色语音！(实验性功能，结果取决于模型能力！)" placement="top" effect="light">
+              <el-tooltip
+                content="通过AI推荐不同的角色语音！(实验性功能，结果取决于模型能力！)"
+                placement="top"
+                effect="light"
+              >
                 <el-radio-button label="ai">
                   AI 推荐
                   <Sparkles class="sparkles-icon" :size="24" :stroke-width="1.25" />
@@ -169,11 +173,7 @@
               </el-form-item>
 
               <el-form-item label="模型">
-                <el-input
-                  v-model="audioConfig.openaiModel"
-                  clearable
-                  placeholder="gpt-4o..."
-                />
+                <el-input v-model="audioConfig.openaiModel" clearable placeholder="gpt-4o..." />
                 <!-- <el-select v-model="audioConfig.openaiModel" placeholder="选择模型" clearable>
                   <el-option label="gpt-3.5-turbo" value="gpt-3.5-turbo" />
                   <el-option label="gpt-4" value="gpt-4" />
@@ -228,13 +228,19 @@
         重置配置
       </el-button>
     </div>
-    <el-progress
-      v-if="generating"
-      style="margin: 20px auto 0px; max-width: 400px"
-      :stroke-width="12"
-      :percentage="generationStore.progress"
-      :color="customColors"
-    />
+    <div class="generate-confetti">
+      <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
+    </div>
+
+    <div class="progress-bar">
+      <el-progress
+        v-if="generating"
+        style="margin: 0px auto; max-width: 400px"
+        :stroke-width="12"
+        :percentage="generationStore.progress"
+        :color="customColors"
+      />
+    </div>
     <DownloadList />
   </div>
 </template>
@@ -243,6 +249,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useGenerationStore } from '@/stores/generation'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
+import ConfettiExplosion from 'vue-confetti-explosion'
 import {
   generateTTS,
   getTask,
@@ -262,6 +269,7 @@ import { AxiosError } from 'axios'
 const generationStore = useGenerationStore()
 const configStore = useAudioConfigStore()
 const { audioConfig } = configStore
+const confettiActive = ref(false)
 
 const generating = ref(false)
 const progressStatus = ref('准备中...')
@@ -331,7 +339,7 @@ const canGenerate = computed(() => {
   if (voiceMode === 'preset') {
     return !!selectedVoice
   } else {
-    return !!openaiBaseUrl && !!openaiKey && !!openaiModel || true
+    return (!!openaiBaseUrl && !!openaiKey && !!openaiModel) || true
   }
 })
 
@@ -519,6 +527,11 @@ const updateAudioList = (data: GenerateResponse) => {
   progressStatus.value = '生成完成！'
   ElMessage.success('语音生成成功！')
   generating.value = false
+  confettiActive.value = true
+
+  setTimeout(() => {
+    confettiActive.value = false
+  }, 600)
 }
 const generateAudio = async () => {
   const { inputText } = audioConfig
@@ -718,12 +731,20 @@ const pooling = async (taskId: string) => {
   align-items: center;
 }
 
+.generate-confetti {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 .progress-container {
   width: 100%;
   max-width: 600px;
   margin: 1.5rem auto;
 }
-
+.progress-bar {
+  margin-top: 20px;
+  height: 12px;
+}
 .progress-text {
   font-weight: 600;
   color: #1a56db;
