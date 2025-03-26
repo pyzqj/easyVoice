@@ -126,7 +126,7 @@ docker run -d \
 - **Q: 如何配置 OpenAI 相关信息?**
 - A: 在 `.env` 文件中添加 `OPENAI_API_KEY=your_api_key` `OPENAI_BASE_URL=openai_compatible_base_url` `MODEL_NAME=openai_model_name`，你可以用任何 openai compatible 的 API 地址和模型名称，例如 `https://openrouter.ai/api/v1/` 和 `deepseek`。
 
-- **Q: 为什么我的配音效果不好？**
+- **Q: 为什么我的AI配音效果不好？**
 - A: AI 推荐配音是通过大模型来决定不同的段落的配音参数，大模型的能力直接影响配音结果，你可以尝试更换不同的大模型，或者是用 Edge-TTS 选择固定的声音配音。
 
 - **Q: 速度太慢？**

@@ -8,15 +8,9 @@
       <div class="header-actions">
         <el-button type="primary" round @click="triggerConfettiAndGo">
           <Sparkles class="icon" /> 立即体验
-          <ConfettiExplosion
-            v-if="confettiActive"
-            :duration="2500"
-            :stageHeight="500"
-          />
+          <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
         </el-button>
-        <el-button plain round @click="goToGitHub">
-          <Github class="icon" /> GitHub
-        </el-button>
+        <el-button plain round @click="goToGitHub"> <Github class="icon" /> GitHub </el-button>
       </div>
     </header>
 
@@ -67,14 +61,31 @@
       <el-collapse accordion>
         <el-collapse-item title="如何自定义语音角色？">
           <p>
-            在生成页面，您可以选择不同的语音角色，并调整语速、音调等参数，也可以通过
-            AI 智能推荐最适合的配置。
+            在生成页面，您可以选择不同的语音角色，并调整语速、音调等参数，也可以通过 AI
+            智能推荐最适合的配置。
           </p>
         </el-collapse-item>
         <el-collapse-item title="如何部署自己的 EasyVoice 实例？">
           <p>
-            我们提供了详细的部署文档，您可以按照文档指引，使用 Docker
-            快速部署自己的 EasyVoice 实例。
+            我们提供了详细的部署文档，您可以按照文档指引，使用 Docker 或者 Node.js 快速部署自己的
+            EasyVoice 实例。
+          </p>
+        </el-collapse-item>
+        <el-collapse-item title="为什么我的AI配音效果不好？">
+          <p>
+            AI
+            推荐配音是通过大模型来决定不同的段落的配音参数，<strong>大模型的能力直接影响配音结果</strong>，你可以尝试更换不同的大模型，或者是用
+            Edge-TTS 选择固定的声音配音。
+          </p>
+        </el-collapse-item>
+        <el-collapse-item title="长文本速度太慢？">
+          <p>
+            请首先确认网络状况，Edge-TTS 依赖网络请求生成音频。 AI
+            推荐配音需要把输入的文本分段、然后让 AI
+            分析、推荐每一分段的配音参数，最后再生成音频、拼接。速度会比直接用
+            Edge-TTS慢。你可以更换相应更快的大模型，或者尝试调节`.env`文件的 Edge-TTS
+            的并发参数：EDGE_API_LIMIT为更大的值(10
+            以下)，<strong>注意并发太高可能会有限制</strong>。
           </p>
         </el-collapse-item>
       </el-collapse>
@@ -83,9 +94,9 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-import { useRouter } from "vue-router";
-import HomeAudio from "@/components/HomeAudio.vue";
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import HomeAudio from '@/components/HomeAudio.vue'
 import {
   BookOpen,
   Github,
@@ -98,27 +109,27 @@ import {
   Mic,
   Info,
   Mail,
-} from "lucide-vue-next";
-import ConfettiExplosion from "vue-confetti-explosion";
+} from 'lucide-vue-next'
+import ConfettiExplosion from 'vue-confetti-explosion'
 
-const router = useRouter();
-const confettiActive = ref(false);
-const fadeout = ref(false);
+const router = useRouter()
+const confettiActive = ref(false)
+const fadeout = ref(false)
 
 const goToGenerate = () => {
-  router.push("/generate");
-};
+  router.push('/generate')
+}
 
 const goToGitHub = () => {
-  window.open("https://github.com/cosin2077/easyVoice", "_blank");
-};
+  window.open('https://github.com/cosin2077/easyVoice', '_blank')
+}
 
 const triggerConfettiAndGo = () => {
-  confettiActive.value = !confettiActive.value;
+  confettiActive.value = !confettiActive.value
   setTimeout(() => {
-    goToGenerate();
-  }, 400);
-};
+    goToGenerate()
+  }, 400)
+}
 </script>
 
 <style scoped lang="less">
@@ -126,7 +137,7 @@ const triggerConfettiAndGo = () => {
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   padding: 0 20px;
-  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
   color: #333;
 }
 
@@ -171,7 +182,7 @@ const triggerConfettiAndGo = () => {
 }
 .confetti::before,
 .confetti::after {
-  content: "";
+  content: '';
   position: absolute;
   width: 10px;
   height: 10px;
