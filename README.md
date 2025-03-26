@@ -79,9 +79,14 @@ docker run -d \
 
 ```
 
-### 2. 本地运行项目
+### 2. 本地运行项目（请先确保已安装 Node.js 环境，参考：[安装 Node.js](https://zhuanlan.zhihu.com/p/442215189)）
 
 ```bash
+# 开启/安装 pnpm
+corepack enable
+# 或者使用 npm 安装 pnpm
+npm install -g pnpm
+
 # 克隆仓库
 git clone git@github.com:cosin2077/easyVoice.git
 cd easyVoice
