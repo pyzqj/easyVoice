@@ -1,5 +1,5 @@
 import { createApp } from './app'
-import { AUDIO_DIR, PUBLIC_DIR, RATE_LIMIT, RATE_LIMIT_WINDOW } from './config'
+import { AUDIO_DIR, PUBLIC_DIR, RATE_LIMIT, RATE_LIMIT_WINDOW, PORT } from './config'
 
 const app = createApp({
   isDev: process.env.NODE_ENV === 'development',
@@ -9,6 +9,6 @@ const app = createApp({
   publicDir: PUBLIC_DIR,
 })
 
-app.listen(process.env.PORT, () => {
-  console.log('Server running on port 3000')
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`)
 })

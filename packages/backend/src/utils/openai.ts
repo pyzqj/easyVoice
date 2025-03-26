@@ -25,7 +25,7 @@ export function createOpenAIClient() {
   }
   logger.debug(`init openai with: `, {
     ...currentConfig,
-    apiKey: currentConfig?.apiKey?.slice(0, 10) + '***',
+    apiKey: currentConfig?.apiKey ? currentConfig?.apiKey?.slice(0, 10) + '***' : undefined,
   })
   // 设置 headers
   const getHeaders = () => ({
