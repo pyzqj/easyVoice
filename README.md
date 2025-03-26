@@ -2,7 +2,7 @@
 
 ## 在线体验
 
-[easyvoice.ioplus.tech](https://easyvoice.ioplus.tech)
+[easyvoice.denode.fun](https://easyvoice.denode.fun)
 
 ## 项目简介 ✨  
 

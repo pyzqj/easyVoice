@@ -20,7 +20,22 @@ export function createMiddlewareConfig({ isDev, rateLimit, rateLimitWindow }: Mi
   })
 
   return {
-    helmet: isDev ? (_req: Request, _res: Response, next: NextFunction) => next() : helmet(),
+    helmet: isDev
+      ? (_req: Request, _res: Response, next: NextFunction) => next()
+      : helmet({
+          contentSecurityPolicy: {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: [
+                "'self'",
+                'https://www.google-analytics.com',
+                'https://www.googletagmanager.com',
+              ],
+              imgSrc: ["'self'", 'https://www.google-analytics.com'],
+              connectSrc: ["'self'", 'https://www.google-analytics.com'],
+            },
+          },
+        }),
     cors: cors(),
     json: express.json({ limit: '10mb' }),
     limiter,
