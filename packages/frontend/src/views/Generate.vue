@@ -265,7 +265,8 @@ import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
 import { mapZHVoiceName } from '@/utils'
 import DownloadList from '@/components/DownloadList.vue'
 import { AxiosError } from 'axios'
-// 状态管理
+import Notification from '@/assets/notification.mp3'
+
 const generationStore = useGenerationStore()
 const configStore = useAudioConfigStore()
 const { audioConfig } = configStore
@@ -273,6 +274,8 @@ const confettiActive = ref(false)
 
 const generating = ref(false)
 const progressStatus = ref('准备中...')
+
+const successAudio = ref<HTMLAudioElement>()
 
 const previewLoading = ref(false)
 const audioPlayer = ref<HTMLAudioElement>()
@@ -325,7 +328,6 @@ const filteredVoices = computed(() => {
       const matchLanguage = voice.Name.startsWith(audioConfig.selectedLanguage)
       const matchGender =
         audioConfig.selectedGender === 'All' || voice.Gender === audioConfig.selectedGender
-      console.log(`matchLanguage, matchGender:`, matchLanguage, matchGender)
       return matchLanguage && matchGender
     })
   )
@@ -411,8 +413,17 @@ const handle400 = (error: AxiosError) => {
     ElMessage.error(errors[0].message)
   }
 }
+const playSuccessSound = () => {
+  if (successAudio.value) {
+    successAudio.value.currentTime = 0 // 重置到开头，避免重复点击无效
+    successAudio.value.play().catch((error) => {
+      console.error('播放音效失败:', error)
+    })
+  }
+}
 // 加载语音数据
 onMounted(async () => {
+  successAudio.value = new Audio(Notification)
   try {
     const response = await getVoiceList()
     voiceList.value = response?.data!
@@ -526,6 +537,7 @@ const updateAudioList = (data: GenerateResponse) => {
   generationStore.updateAudioList(newAudioList)
   progressStatus.value = '生成完成！'
   ElMessage.success('语音生成成功！')
+  playSuccessSound()
   generating.value = false
   confettiActive.value = true
 
