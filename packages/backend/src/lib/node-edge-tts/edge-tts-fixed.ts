@@ -149,105 +149,147 @@ class EdgeTTS {
       throw new Error('audioPath is required when outputType is "file"')
     }
 
-    const _wsConnect = await this._connectWebSocket()
-    return new Promise((resolve, reject) => {
-      let audioStream: WriteStream | undefined
-      let readableStream: Readable | undefined
-      let audioChunks: Buffer[] = []
-      let subFile: SubLine[] = []
+    let _wsConnect: WebSocket
+    try {
+      _wsConnect = await this._connectWebSocket()
+    } catch (err) {
+      throw new Error(`Failed to connect WebSocket: ${(err as Error).message}`)
+    }
 
-      // 根据 outputType 初始化
-      if (outputType === 'file') {
+    let audioStream: WriteStream | undefined
+    let readableStream: Readable | undefined
+    let audioChunks: Buffer[] = []
+    let subFile: SubLine[] = []
+    let isStreamDestroyed = false
+    let resolveBuffer: (value: Buffer) => void
+    let rejectBuffer: (reason: Error) => void
+    let resolveFile: () => void
+    let rejectFile: (reason: Error) => void
+
+    // 初始化输出
+    if (outputType === 'file') {
+      try {
         audioStream = createWriteStream(audioPath!)
-      } else if (outputType === 'stream') {
-        readableStream = new Readable({
-          read() {}, // 手动推送数据
-        })
+      } catch (err) {
+        _wsConnect.close()
+        throw new Error(`Failed to create write stream: ${(err as Error).message}`)
       }
+    } else if (outputType === 'stream') {
+      readableStream = new Readable({
+        read() {},
+        destroy(err, callback) {
+          isStreamDestroyed = true
+          _wsConnect.close()
+          callback(err)
+        },
+      })
+    }
 
-      const timeout = setTimeout(() => {
-        _wsConnect.close()
-        if (readableStream) readableStream.destroy(new Error('WebSocket timed out'))
-        reject(new Error(`_wsConnect.on('message') Timed out`))
-      }, this.timeout)
+    // 设置超时
+    const timeout = setTimeout(() => {
+      _wsConnect.close()
+      if (readableStream) readableStream.destroy(new Error('WebSocket timed out'))
+      if (outputType === 'file') {
+        audioStream?.end()
+        rejectFile?.(new Error('WebSocket timed out'))
+      }
+      if (outputType === 'buffer') rejectBuffer?.(new Error('WebSocket timed out'))
+    }, this.timeout)
 
-      _wsConnect.on('message', async (data: Buffer, isBinary: boolean) => {
-        clearTimeout(timeout)
-        if (isBinary) {
-          const separator = 'Path:audio\r\n'
-          const index = data.indexOf(separator) + separator.length
-          const audioData = data.subarray(index)
+    // 处理 WebSocket 消息
+    _wsConnect.on('message', (data: Buffer, isBinary: boolean) => {
+      clearTimeout(timeout)
+      if (isBinary) {
+        const separator = 'Path:audio\r\n'
+        const index = data.indexOf(separator) + separator.length
+        const audioData = data.subarray(index)
 
-          if (outputType === 'file') {
+        if (outputType === 'file') {
+          try {
             audioStream!.write(audioData)
-          } else if (outputType === 'stream') {
-            readableStream!.push(audioData)
-          } else {
-            audioChunks.push(audioData) // 收集 Buffer
+          } catch (err) {
+            audioStream!.end()
+            _wsConnect.close()
+            throw new Error(`Failed to write to file: ${(err as Error).message}`)
           }
-        } else {
-          const message = data.toString()
-          if (message.includes('Path:turn.end')) {
-            if (outputType === 'file') {
-              audioStream!.end()
-              _wsConnect.close()
-              if (saveSubtitles) {
-                this._saveSubFile(subFile, text, audioPath!)
-              }
-              resolve()
-            } else if (outputType === 'stream') {
-              readableStream!.push(null) // 结束流
-              _wsConnect.close()
-              resolve(readableStream!)
-            } else {
-              _wsConnect.close()
-              const audioBuffer = Buffer.concat(audioChunks)
-              if (saveSubtitles) {
-                this._saveSubFile(subFile, text, audioPath || 'temp') // 假设需要临时路径
-              }
-              resolve(audioBuffer)
-            }
-          } else if (message.includes('Path:audio.metadata')) {
-            const splitTexts = message.split('\r\n')
-            try {
-              const metadata = JSON.parse(splitTexts[splitTexts.length - 1])
-              metadata['Metadata'].forEach((element: any) => {
-                subFile.push({
-                  part: element['Data']['text']['Text'],
-                  start: Math.floor(element['Data']['Offset'] / 10000),
-                  end: Math.floor(
-                    (element['Data']['Offset'] + element['Data']['Duration']) / 10000
-                  ),
-                })
+        } else if (outputType === 'stream' && !isStreamDestroyed) {
+          readableStream!.push(audioData) // 实时推送
+        } else if (outputType === 'buffer') {
+          audioChunks.push(audioData)
+        }
+      } else {
+        const message = data.toString()
+        if (message.includes('Path:turn.end')) {
+          if (outputType === 'file') {
+            audioStream!.end()
+            if (saveSubtitles) this._saveSubFile(subFile, text, audioPath!)
+            _wsConnect.close()
+            resolveFile()
+          } else if (outputType === 'stream' && !isStreamDestroyed) {
+            readableStream!.push(null) // 结束流
+            _wsConnect.close()
+          } else if (outputType === 'buffer') {
+            const audioBuffer = Buffer.concat(audioChunks)
+            if (saveSubtitles) this._saveSubFile(subFile, text, audioPath || 'temp')
+            _wsConnect.close()
+            resolveBuffer?.(audioBuffer) // 直接调用 resolve
+          }
+        } else if (message.includes('Path:audio.metadata')) {
+          const splitTexts = message.split('\r\n')
+          try {
+            const metadata = JSON.parse(splitTexts[splitTexts.length - 1])
+            metadata['Metadata'].forEach((element: any) => {
+              subFile.push({
+                part: element['Data']['text']['Text'],
+                start: Math.floor(element['Data']['Offset'] / 10000),
+                end: Math.floor((element['Data']['Offset'] + element['Data']['Duration']) / 10000),
               })
-            } catch {
-              // 忽略解析错误
-            }
+            })
+          } catch {
+            // 忽略解析错误
           }
         }
-      })
+      }
+    })
 
-      _wsConnect.on('error', (err: Error) => {
-        clearTimeout(timeout)
-        if (outputType === 'file') audioStream?.end()
-        if (outputType === 'stream') readableStream?.destroy(err)
-        _wsConnect.close()
-        reject(new Error(`WebSocket error during transmission: ${err.message}`))
-      })
+    // WebSocket 错误处理
+    _wsConnect.on('error', (err: Error) => {
+      clearTimeout(timeout)
+      if (outputType === 'file') {
+        audioStream?.end()
+        rejectFile?.(new Error(`WebSocket error: ${err.message}`))
+      }
+      if (outputType === 'stream' && !isStreamDestroyed) readableStream?.destroy(err)
+      if (outputType === 'buffer') rejectBuffer?.(new Error(`WebSocket error: ${err.message}`))
+      _wsConnect.close()
+    })
 
-      _wsConnect.on('close', (code: number, reason: string) => {
-        clearTimeout(timeout)
-        if (code !== 1000) {
-          if (outputType === 'file') audioStream?.end()
-          if (outputType === 'stream') readableStream?.destroy()
-          reject(
-            new Error(
-              `WebSocket closed unexpectedly during transmission with code ${code}: ${reason.toString()}`
-            )
-          )
+    // WebSocket 关闭处理
+    _wsConnect.on('close', (code: number, reason: string) => {
+      clearTimeout(timeout)
+      if (code !== 1000) {
+        const errMsg = `WebSocket closed unexpectedly with code ${code}: ${reason.toString()}`
+        if (outputType === 'file') {
+          audioStream?.end()
+          rejectFile?.(new Error(errMsg))
         }
-      })
+        if (outputType === 'stream' && !isStreamDestroyed)
+          readableStream?.destroy(new Error(errMsg))
+        if (outputType === 'buffer') rejectBuffer?.(new Error(errMsg))
+      }
+    })
 
+    // 文件流错误处理
+    if (outputType === 'file') {
+      audioStream!.on('error', (err) => {
+        audioStream!.end()
+        _wsConnect.close()
+        throw new Error(`File stream error: ${err.message}`)
+      })
+    }
+
+    // 发送 SSML 请求
+    try {
       const requestId = randomBytes(16).toString('hex')
       _wsConnect.send(
         `X-RequestId:${requestId}\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n
@@ -259,7 +301,28 @@ class EdgeTTS {
           </voice>
         </speak>`
       )
-    })
+    } catch (err) {
+      _wsConnect.close()
+      if (readableStream) readableStream.destroy(err as Error)
+      throw new Error(`Failed to send SSML request: ${(err as Error).message}`)
+    }
+
+    // 立即返回
+    if (outputType === 'stream') {
+      return readableStream!
+    } else if (outputType === 'buffer') {
+      return new Promise<Buffer>((resolve, reject) => {
+        resolveBuffer = resolve
+        rejectBuffer = reject
+      })
+    } else if (outputType === 'file') {
+      return new Promise<void>((resolve, reject) => {
+        resolveFile = resolve
+        rejectFile = reject
+      })
+    } else {
+      throw new Error(`Invalid output type: ${outputType}`)
+    }
   }
 }
 
