@@ -23,7 +23,7 @@ export async function runEdgeTTS({
     timeout: 30_000,
   })
   console.log(`run with nodejs edge-tts service...`)
-  await tts.ttsPromise(text, output)
+  await tts.ttsPromise(text, { audioPath: output, outputType: 'file' })
   return {
     audio: output,
     srt: output.replace('.mp3', '.srt'),

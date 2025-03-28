@@ -28,3 +28,8 @@ export const RATE_LIMIT = parseInt(process.env.RATE_LIMIT || '0') || 1e6
 export const EDGE_API_LIMIT = parseInt(process.env.EDGE_API_LIMIT || '3') || 3
 
 export const PORT = parseInt(process.env.PORT || '3000') || 3000
+
+export const REGISTER_OPENAI_TTS = process.env.REGISTER_OPENAI_TTS || false
+
+export const REGISTER_KOKORO = process.env.REGISTER_KOKORO || false
+export const TTS_KOKORO_URL = process.env.TTS_KOKORO_URL || 'http://localhost:8880/v1'

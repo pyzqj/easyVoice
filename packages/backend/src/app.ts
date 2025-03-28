@@ -3,6 +3,8 @@ import { logger } from './utils/logger'
 import { createMiddlewareConfig } from './middleware/config'
 import { configureStaticFiles } from './middleware/static'
 import { setupRoutes } from './routes'
+import { registerEngines } from './tts/engines'
+import { ttsPluginManager } from './tts/pluginManager'
 
 // 应用配置接口
 interface AppConfig {
@@ -14,7 +16,7 @@ interface AppConfig {
 }
 
 // 创建应用工厂函数
-export function createApp(config: AppConfig): Application {
+export  function createApp(config: AppConfig): Application {
   const { isDev, rateLimit, rateLimitWindow, audioDir, publicDir } = config
   logger.debug('Initializing application...')
 
@@ -36,5 +38,6 @@ export function createApp(config: AppConfig): Application {
   // 配置静态文件服务
   configureStaticFiles(app, { audioDir, publicDir })
 
+  registerEngines()
   return app
 }
