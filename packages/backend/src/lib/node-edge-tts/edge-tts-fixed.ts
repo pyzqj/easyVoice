@@ -1,15 +1,22 @@
 import { randomBytes } from 'node:crypto'
-import { writeFileSync, createWriteStream } from 'node:fs'
+import { writeFileSync, createWriteStream, WriteStream } from 'node:fs'
 import { WebSocket } from 'ws'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { generateSecMsGecToken, TRUSTED_CLIENT_TOKEN, CHROMIUM_FULL_VERSION } from './drm'
+import { Readable } from 'node:stream'
 
-type subLine = {
+interface SubLine {
   part: string
   start: number
   end: number
 }
 
+// 定义选项接口
+interface TtsOptions {
+  outputType?: 'stream' | 'buffer' | 'file' // 返回类型：流、Buffer 或写入文件
+  audioPath?: string // 如果是文件输出，则需要路径
+  saveSubtitles?: boolean // 是否保存字幕
+}
 type configure = {
   voice?: string
   lang?: string
@@ -112,11 +119,11 @@ class EdgeTTS {
     })
   }
 
-  _saveSubFile(subFile: subLine[], text: string, audioPath: string) {
+  _saveSubFile(subFile: SubLine[], text: string, audioPath: string) {
     let subPath = audioPath + '.json'
     let subChars = text.split('')
     let subCharIndex = 0
-    subFile.forEach((cue: subLine, index: number) => {
+    subFile.forEach((cue: SubLine, index: number) => {
       let fullPart = ''
       let stepIndex = 0
       for (let sci = subCharIndex; sci < subChars.length; sci++) {
@@ -135,37 +142,75 @@ class EdgeTTS {
     writeFileSync(subPath, JSON.stringify(subFile, null, '  '), { encoding: 'utf-8' })
   }
 
-  async ttsPromise(text: string, audioPath: string): Promise<void> {
+  async ttsPromise(text: string, options: TtsOptions = {}): Promise<Readable | Buffer | void> {
+    const { outputType = 'buffer', audioPath, saveSubtitles = this.saveSubtitles } = options
+
+    if (outputType === 'file' && !audioPath) {
+      throw new Error('audioPath is required when outputType is "file"')
+    }
+
     const _wsConnect = await this._connectWebSocket()
-    return new Promise((resolve: () => void, reject: (reason: Error) => void) => {
-      let audioStream = createWriteStream(audioPath)
-      let subFile: subLine[] = []
-      let timeout = setTimeout(() => {
+    return new Promise((resolve, reject) => {
+      let audioStream: WriteStream | undefined
+      let readableStream: Readable | undefined
+      let audioChunks: Buffer[] = []
+      let subFile: SubLine[] = []
+
+      // 根据 outputType 初始化
+      if (outputType === 'file') {
+        audioStream = createWriteStream(audioPath!)
+      } else if (outputType === 'stream') {
+        readableStream = new Readable({
+          read() {}, // 手动推送数据
+        })
+      }
+
+      const timeout = setTimeout(() => {
         _wsConnect.close()
+        if (readableStream) readableStream.destroy(new Error('WebSocket timed out'))
         reject(new Error(`_wsConnect.on('message') Timed out`))
       }, this.timeout)
 
       _wsConnect.on('message', async (data: Buffer, isBinary: boolean) => {
         clearTimeout(timeout)
         if (isBinary) {
-          let separator = 'Path:audio\r\n'
-          let index = data.indexOf(separator) + separator.length
-          let audioData = data.subarray(index)
-          audioStream.write(audioData)
+          const separator = 'Path:audio\r\n'
+          const index = data.indexOf(separator) + separator.length
+          const audioData = data.subarray(index)
+
+          if (outputType === 'file') {
+            audioStream!.write(audioData)
+          } else if (outputType === 'stream') {
+            readableStream!.push(audioData)
+          } else {
+            audioChunks.push(audioData) // 收集 Buffer
+          }
         } else {
-          let message = data.toString()
+          const message = data.toString()
           if (message.includes('Path:turn.end')) {
-            audioStream.end()
-            _wsConnect.close()
-            if (this.saveSubtitles) {
-              this._saveSubFile(subFile, text, audioPath)
+            if (outputType === 'file') {
+              audioStream!.end()
+              _wsConnect.close()
+              if (saveSubtitles) {
+                this._saveSubFile(subFile, text, audioPath!)
+              }
+              resolve()
+            } else if (outputType === 'stream') {
+              readableStream!.push(null) // 结束流
+              _wsConnect.close()
+              resolve(readableStream!)
+            } else {
+              _wsConnect.close()
+              const audioBuffer = Buffer.concat(audioChunks)
+              if (saveSubtitles) {
+                this._saveSubFile(subFile, text, audioPath || 'temp') // 假设需要临时路径
+              }
+              resolve(audioBuffer)
             }
-            clearTimeout(timeout)
-            resolve()
           } else if (message.includes('Path:audio.metadata')) {
-            let splitTexts = message.split('\r\n')
+            const splitTexts = message.split('\r\n')
             try {
-              let metadata = JSON.parse(splitTexts[splitTexts.length - 1])
+              const metadata = JSON.parse(splitTexts[splitTexts.length - 1])
               metadata['Metadata'].forEach((element: any) => {
                 subFile.push({
                   part: element['Data']['text']['Text'],
@@ -184,7 +229,8 @@ class EdgeTTS {
 
       _wsConnect.on('error', (err: Error) => {
         clearTimeout(timeout)
-        audioStream.end()
+        if (outputType === 'file') audioStream?.end()
+        if (outputType === 'stream') readableStream?.destroy(err)
         _wsConnect.close()
         reject(new Error(`WebSocket error during transmission: ${err.message}`))
       })
@@ -192,7 +238,8 @@ class EdgeTTS {
       _wsConnect.on('close', (code: number, reason: string) => {
         clearTimeout(timeout)
         if (code !== 1000) {
-          audioStream.end()
+          if (outputType === 'file') audioStream?.end()
+          if (outputType === 'stream') readableStream?.destroy()
           reject(
             new Error(
               `WebSocket closed unexpectedly during transmission with code ${code}: ${reason.toString()}`
@@ -201,7 +248,7 @@ class EdgeTTS {
         }
       })
 
-      let requestId = randomBytes(16).toString('hex')
+      const requestId = randomBytes(16).toString('hex')
       _wsConnect.send(
         `X-RequestId:${requestId}\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n
         <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="${this.lang}">
