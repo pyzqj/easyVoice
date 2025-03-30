@@ -10,7 +10,8 @@ export async function runEdgeTTS({
   voice,
   rate,
   output,
-}: Omit<EdgeSchema, 'useLLM'> & { output: string }) {
+  outputType = 'file',
+}: Omit<EdgeSchema, 'useLLM'> & { output: string; outputType?: string }) {
   const lang = /([a-zA-Z]{2,5}-[a-zA-Z]{2,5}\b)/.exec(voice)?.[1]
   const tts = new EdgeTTS({
     voice,
@@ -23,7 +24,11 @@ export async function runEdgeTTS({
     timeout: 30_000,
   })
   console.log(`run with nodejs edge-tts service...`)
-  await tts.ttsPromise(text, { audioPath: output, outputType: 'file' })
+  if (outputType !== 'file') {
+    return tts.ttsPromise(text, { audioPath: output, outputType: outputType as any })
+  } else {
+    await tts.ttsPromise(text, { audioPath: output, outputType: outputType as any })
+  }
   return {
     audio: output,
     srt: output.replace('.mp3', '.srt'),
@@ -44,7 +49,7 @@ export const generateSingleVoice = async ({
   }
   await safeRunWithRetry(
     async () => {
-      result = await runEdgeTTS({ text, pitch, volume, voice, rate, output })
+      result = (await runEdgeTTS({ text, pitch, volume, voice, rate, output })) as TTSResult
     },
     { retries: 5 }
   )
