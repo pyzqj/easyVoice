@@ -1,6 +1,8 @@
 import fs from 'fs/promises'
 import { resolve } from 'path'
-import crypto from 'crypto'
+import { Response } from 'express'
+import { PassThrough, Readable, Stream } from 'stream'
+import { logger } from './logger'
 
 export async function getLangConfig(text: string) {
   const { franc } = await import('franc')
@@ -97,4 +99,50 @@ export function formatFileSize(bytes: number) {
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+interface StreamOptions {
+  headers?: Record<string, string> // 自定义响应头
+  onError?: (err: Error) => string // 自定义错误消息格式化函数
+  onEnd?: () => void // 流结束时的回调
+}
+
+/**
+ * 将流式数据发送到客户端的通用函数
+ * @param res Express 响应对象
+ * @param inputStream 输入流
+ * @param options 配置选项
+ */
+export function streamToResponse(
+  res: Response,
+  inputStream: Readable | Stream,
+  options: StreamOptions = {}
+): void {
+  const { headers = {}, onError = (err) => `Error occurred: ${err.message}`, onEnd } = options
+
+  const outputStream = new PassThrough()
+
+  Object.entries(headers).forEach(([key, value]) => {
+    res.setHeader(key, value)
+  })
+
+  inputStream.on('error', (err: Error) => {
+    logger.error('Input stream error:', err)
+    const errorMessage = onError(err)
+    outputStream.write(errorMessage)
+    outputStream.end()
+  })
+
+  outputStream.on('error', (err: Error) => {
+    logger.error('Output stream error:', err)
+    res.status(500).end('Internal server error')
+  })
+
+  if (onEnd) {
+    inputStream.on('end', () => {
+      console.log('Stream completed successfully')
+      onEnd()
+    })
+  }
+
+  inputStream.pipe(outputStream).pipe(res)
 }

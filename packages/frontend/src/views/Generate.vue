@@ -228,6 +228,10 @@
         重置配置
       </el-button>
     </div>
+    <div>
+      <audio ref="streamAudioRef" controls></audio>
+      <p>时长: {{ streamDuration }} 秒</p>
+    </div>
     <div class="generate-confetti">
       <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
     </div>
@@ -257,12 +261,13 @@ import {
   createTask,
   type Voice,
   type GenerateResponse,
+  type ResponseWrapper,
 } from '@/api/tts'
 import { Sparkles } from 'lucide-vue-next'
 import { UploadFilled, Service } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
-import { mapZHVoiceName } from '@/utils'
+import { createAudioStreamProcessor, mapZHVoiceName } from '@/utils'
 import DownloadList from '@/components/DownloadList.vue'
 import { AxiosError } from 'axios'
 import Notification from '@/assets/notification.mp3'
@@ -281,7 +286,8 @@ const previewLoading = ref(false)
 const audioPlayer = ref<HTMLAudioElement>()
 
 const voiceList = ref<Voice[]>(defaultVoiceList)
-
+const streamAudioRef = ref<HTMLAudioElement | null>(null)
+const streamDuration = ref<number>(0)
 const languages = ref([
   { code: 'zh-CN', name: '中文（简体）' },
   { code: 'zh-TW', name: '中文（繁体）' },
@@ -516,7 +522,8 @@ const handleGenerate = () => {
   if (!inputText.trim() || !canGenerate.value) return
   if (inputText.length < 200) {
     console.warn('[handleGenerate]Input text is too short, generating directly...')
-    generateAudio()
+    generateAudioTask()
+    // generateAudio()
   } else {
     console.warn('[handleGenerate]Input text is long, creating task...')
     generateAudioTask()
@@ -566,7 +573,18 @@ const generateAudio = async () => {
     generating.value = false
   }
 }
+const streamToBlob = async (stream: ReadableStream): Promise<Blob> => {
+  const reader = stream.getReader()
+  const chunks: Uint8Array[] = []
 
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    chunks.push(value)
+  }
+
+  return new Blob(chunks, { type: 'audio/mpeg' }) // 假设是 MPEG 音频，类型可根据实际调整
+}
 const generateAudioTask = async () => {
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
@@ -576,14 +594,27 @@ const generateAudioTask = async () => {
 
   try {
     const params = buildParams(inputText)
-    const { data } = await createTask(params)
-    console.log(`data:`, data)
-    if (!data?.id) {
-      console.error(`createTask data: `, data)
-      throw new Error(`no task id returned from generateTTS`)
+    let processor: ReturnType<typeof createAudioStreamProcessor> | null = null
+
+    const stream = await createTask(params)
+    if ((stream as ResponseWrapper<GenerateResponse>).code) {
+      updateAudioList((stream as ResponseWrapper<GenerateResponse>).data!)
+      return
     }
-    const taskId = data?.id
-    pooling(taskId)
+    processor = createAudioStreamProcessor(stream as ReadableStream)
+
+    if (streamAudioRef.value) {
+      streamAudioRef.value.src = processor.audioUrl
+
+      streamAudioRef.value.addEventListener('durationchange', () => {
+        console.log(`streamAudioRef.value!.duration`, streamAudioRef.value!.duration)
+        streamDuration.value =
+          streamAudioRef.value!.duration === Infinity ? 0 : streamAudioRef.value!.duration
+      })
+    }
+    generating.value = false
+    generationStore.updateProgress(100)
+    progressStatus.value = '生成完成'
   } catch (error) {
     console.error('生成失败:', error)
     commonErrorHandler(error)

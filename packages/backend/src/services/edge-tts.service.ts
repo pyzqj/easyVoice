@@ -24,36 +24,35 @@ export async function runEdgeTTS({
     timeout: 30_000,
   })
   console.log(`run with nodejs edge-tts service...`)
-  if (outputType !== 'file') {
-    return tts.ttsPromise(text, { audioPath: output, outputType: outputType as any })
-  } else {
-    await tts.ttsPromise(text, { audioPath: output, outputType: outputType as any })
+  if (outputType === 'file') {
+    await tts.ttsPromise(text, { audioPath: output, outputType })
+    return {
+      audio: output,
+      srt: output.replace('.mp3', '.srt'),
+      file: '',
+    }
   }
-  return {
-    audio: output,
-    srt: output.replace('.mp3', '.srt'),
-    file: '',
-  }
+  return tts.ttsPromise(text, { audioPath: output, outputType: outputType as any })
 }
-export const generateSingleVoice = async ({
-  text,
-  volume,
-  pitch,
-  voice,
-  rate,
-  output,
-}: Omit<EdgeSchema, 'useLLM'> & { output: string }) => {
+export const generateSingleVoice = async (
+  params: Omit<EdgeSchema, 'useLLM'> & { output: string }
+) => {
   let result: TTSResult = {
     audio: '',
     srt: '',
   }
   await safeRunWithRetry(
     async () => {
-      result = (await runEdgeTTS({ text, pitch, volume, voice, rate, output })) as TTSResult
+      result = (await runEdgeTTS({ ...params })) as TTSResult
     },
     { retries: 5 }
   )
   return result!
+}
+export const generateSingleVoiceStream = async (
+  params: Omit<EdgeSchema, 'useLLM'> & { output: string; outputType?: string }
+) => {
+  return runEdgeTTS({ ...params, outputType: 'stream' })
 }
 
 // 定义字幕数据的类型

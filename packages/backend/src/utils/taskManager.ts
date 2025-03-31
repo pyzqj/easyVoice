@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { memoryUsage } from 'process'
+import { Request, Response, NextFunction } from 'express'
 import { formatFileSize } from '.'
 
 interface Options {
@@ -20,6 +21,16 @@ export interface Task {
   createdAt: Date
   updatedAt?: Date
   updateProgress?: (taskId: string, progress: number) => Task | undefined
+  endTask?: (taskId: string) => void
+  context?: {
+    req?: Request
+    res?: Response
+    body?: any
+    result?: TTSResult
+    segment?: Segment
+    lang?: string
+    voiceList?: VoiceConfig[]
+  }
 }
 class TaskManager {
   tasks: Map<string, Task>
@@ -69,6 +80,7 @@ class TaskManager {
       result: null,
       createdAt: new Date(),
       updateProgress: this.updateProgress.bind(this),
+      endTask: this.finishTask.bind(this),
     }
     this.tasks.set(taskId, task)
     return task
