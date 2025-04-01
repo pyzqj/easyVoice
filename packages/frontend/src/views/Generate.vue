@@ -228,10 +228,7 @@
         重置配置
       </el-button>
     </div>
-    <div>
-      <audio ref="streamAudioRef" controls></audio>
-      <p>时长: {{ streamDuration }} 秒</p>
-    </div>
+
     <div class="generate-confetti">
       <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
     </div>
@@ -597,11 +594,11 @@ const generateAudioTask = async () => {
     let processor: ReturnType<typeof createAudioStreamProcessor> | null = null
 
     const stream = await createTask(params)
-    if ((stream as ResponseWrapper<GenerateResponse>).code) {
-      updateAudioList((stream as ResponseWrapper<GenerateResponse>).data!)
+    if ((stream as unknown as ResponseWrapper<GenerateResponse>).code) {
+      pooling((stream as unknown as ResponseWrapper<GenerateResponse>).data!.id)
       return
     }
-    processor = createAudioStreamProcessor(stream as ReadableStream)
+    processor = createAudioStreamProcessor(stream as unknown as ReadableStream)
 
     if (streamAudioRef.value) {
       streamAudioRef.value.src = processor.audioUrl

@@ -84,13 +84,20 @@ export const getTask = async (data: TaskRequest) => {
   return response.data
 }
 export const createTask = async (data: TaskRequest) => {
+  const response = await api.post<ResponseWrapper<Task>>(`/create`, data)
+  if (response.data?.code !== 200 || !response.data?.success) {
+    throw new Error(response.data?.message || '获取任务')
+  }
+  return response.data
+}
+export const createTaskStream = async (data: TaskRequest) => {
   const response = await api.post<ReadableStream | ResponseWrapper<GenerateResponse>>(
     `/createStream?mock=true`,
     data,
     {
       responseType: 'stream',
       adapter: 'fetch',
-      timeout: 0, // 禁用超时
+      timeout: 0,
     }
   )
   if (response.status !== 200) {
