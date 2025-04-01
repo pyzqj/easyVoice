@@ -1,8 +1,11 @@
+import fs from 'fs'
+import path from 'path'
 import { Request, Response, NextFunction } from 'express'
 import { logger } from '../utils/logger'
 import taskManager from '../utils/taskManager'
 import { EdgeSchema } from '../schema/generate'
 import { generateTTSStream } from '../services/tts.stream.service'
+import { streamWithLimit } from '../utils'
 function formatBody({ text, pitch, voice, volume, rate, useLLM }: EdgeSchema) {
   const positivePercent = (value: string | undefined) => {
     if (value === '0%' || value === '0' || value === undefined) return '+0%'
@@ -30,12 +33,16 @@ function formatBody({ text, pitch, voice, volume, rate, useLLM }: EdgeSchema) {
  */
 export async function createTaskStream(req: Request, res: Response, next: NextFunction) {
   try {
+    if (req.query?.mock) {
+      logger.info('Mocking audio stream...')
+      streamWithLimit(res, path.join(__dirname, '../../mock/flying.mp3'), 1280) // Mock stream with limit
+      return
+    }
     logger.debug('Generating audio with body:', req.body)
     const formattedBody = formatBody(req.body)
     const task = taskManager.createTask(formattedBody)
     task.context = { req, res, body: req.body }
     logger.info(`Generated stream task ID: ${task.id}`)
-
     generateTTSStream(formattedBody, task)
   } catch (error) {
     console.log(`createTaskStream error:`, error)

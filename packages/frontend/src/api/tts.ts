@@ -85,11 +85,12 @@ export const getTask = async (data: TaskRequest) => {
 }
 export const createTask = async (data: TaskRequest) => {
   const response = await api.post<ReadableStream | ResponseWrapper<GenerateResponse>>(
-    `/createStream`,
+    `/createStream?mock=true`,
     data,
     {
       responseType: 'stream',
       adapter: 'fetch',
+      timeout: 0, // 禁用超时
     }
   )
   if (response.status !== 200) {

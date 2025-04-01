@@ -1,4 +1,5 @@
 import fs from 'fs/promises'
+import { createReadStream } from 'fs'
 import { resolve } from 'path'
 import { Response } from 'express'
 import { PassThrough, Readable, Stream } from 'stream'
@@ -145,4 +146,46 @@ export function streamToResponse(
   }
 
   inputStream.pipe(outputStream).pipe(res)
+}
+export function streamWithLimit(res: Response, filePath: string, bitrate = 128) {
+  const byteRate = (bitrate * 1024) / 8 // kbps to bytes per second
+  const chunkSize = byteRate / 10
+  const fileStream = createReadStream(filePath)
+
+  res.setHeader('Content-Type', 'audio/opus')
+
+  let buffer = Buffer.alloc(0)
+
+  fileStream.on('data', (chunk) => {
+    buffer = Buffer.concat([buffer, chunk as Buffer])
+    if (!fileStream.isPaused() && buffer.length >= chunkSize * 2) {
+      fileStream.pause()
+    }
+  })
+
+  fileStream.on('end', () => {
+    clearInterval(timer)
+    res.end(buffer)
+  })
+
+  fileStream.on('error', (err: Error) => {
+    logger.error(`Stream error: ${err.message}`)
+    res.status(500).send(`Stream error: ${err.message}`)
+  })
+
+  const timer = setInterval(() => {
+    if (buffer.length > 0) {
+      const sendSize = Math.min(chunkSize, buffer.length)
+      res.write(buffer.slice(0, sendSize))
+      buffer = buffer.slice(sendSize)
+      if (buffer.length < chunkSize && fileStream.isPaused()) {
+        fileStream.resume()
+      }
+    }
+  }, 100)
+
+  res.on('close', () => {
+    fileStream.destroy()
+    clearInterval(timer)
+  })
 }
