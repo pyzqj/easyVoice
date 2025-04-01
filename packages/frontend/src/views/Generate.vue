@@ -228,7 +228,11 @@
         重置配置
       </el-button>
     </div>
-
+    <audio ref="streamAudioRef" controls></audio>
+    <div>
+      时长：
+      {{ streamDuration }}
+    </div>
     <div class="generate-confetti">
       <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
     </div>
@@ -259,6 +263,7 @@ import {
   type Voice,
   type GenerateResponse,
   type ResponseWrapper,
+  createTaskStream,
 } from '@/api/tts'
 import { Sparkles } from 'lucide-vue-next'
 import { UploadFilled, Service } from '@element-plus/icons-vue'
@@ -593,16 +598,25 @@ const generateAudioTask = async () => {
     const params = buildParams(inputText)
     let processor: ReturnType<typeof createAudioStreamProcessor> | null = null
 
-    const stream = await createTask(params)
+    const stream = await createTaskStream(params)
     if ((stream as unknown as ResponseWrapper<GenerateResponse>).code) {
       pooling((stream as unknown as ResponseWrapper<GenerateResponse>).data!.id)
       return
     }
     processor = createAudioStreamProcessor(stream as unknown as ReadableStream)
-
+    let itv = setInterval(() => {
+      if (processor.isActive()) {
+        const duration = processor.getLoadedDuration?.()
+        if (!Number.isNaN(duration)) {
+          streamDuration.value = duration
+        }
+        return
+      }
+      clearInterval(itv)
+    }, 600)
     if (streamAudioRef.value) {
       streamAudioRef.value.src = processor.audioUrl
-
+      console.log(`streamAudioRef.value:`, streamAudioRef.value)
       streamAudioRef.value.addEventListener('durationchange', () => {
         console.log(`streamAudioRef.value!.duration`, streamAudioRef.value!.duration)
         streamDuration.value =

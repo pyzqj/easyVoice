@@ -101,9 +101,12 @@ export const createTaskStream = async (data: TaskRequest) => {
     }
   )
   if (response.status !== 200) {
-    throw new Error('createTask by /createStream 失败!')
+    // stream to JSON
+    const text = await new Response(response.data as any).text()
+    const errorData = JSON.parse(text)
+    return errorData
   }
-  return response.data
+  return response.data as ReadableStream
 }
 
 export const downloadFile = (file: string) => `${api.defaults.baseURL}/download/${file}`

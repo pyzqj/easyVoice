@@ -96,6 +96,8 @@ interface AudioProcessor {
   appendData: (data: ArrayBuffer) => void // 追加音频数据
   stop: () => void // 停止并清理资源
   isActive: () => boolean // 检查 MediaSource 是否活跃
+  getLoadedDuration: () => number // 返回duration
+  downloadAudio: () => void // 返回duration
 }
 
 /**
@@ -184,7 +186,23 @@ export function createAudioStreamProcessor(
       isAppending = false
     }
   }
-
+  function downloadAudio() {
+    if (blobs.length === 0) {
+      console.warn('No audio data to download.')
+      return
+    }
+    // 合并所有 blobs 为一个完整的音频 Blob
+    const audioBlob = new Blob(blobs, { type: mimeType })
+    const url = URL.createObjectURL(audioBlob)
+    const a = document.createElement('a')
+    a.href = url
+    // 设置下载文件名，基于 mimeType（如 audio/mpeg -> audio.mp3）
+    a.download = 'audio.' + (mimeType.split('/')[1] || 'mp3')
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
   // 返回接口
   return {
     audioUrl,
@@ -200,5 +218,12 @@ export function createAudioStreamProcessor(
       URL.revokeObjectURL(audioUrl)
     },
     isActive: () => mediaSource.readyState === 'open',
+    getLoadedDuration: () => {
+      if (sourceBuffer && sourceBuffer.buffered.length > 0) {
+        return sourceBuffer.buffered.end(sourceBuffer.buffered.length - 1)
+      }
+      return 0
+    },
+    downloadAudio,
   }
 }
