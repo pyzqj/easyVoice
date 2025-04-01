@@ -63,7 +63,11 @@ class CacheService {
     try {
       const key = this.generateKey(str)
       const item = await this.storage.get<CacheItem<T>>(key)
-      if (!item || item.expireAt < Date.now()) {
+      if (!item) {
+        logger.info(`no cache for:${key}`)
+        return item
+      }
+      if (item.expireAt < Date.now()) {
         await this.storage.delete(key) // 删除过期项
         return null
       }
