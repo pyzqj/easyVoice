@@ -93,11 +93,14 @@ export function useAudio(mp3Url: string): AudioController {
 
 interface AudioProcessor {
   audioUrl: string // 用于绑定到 <audio> 元素的 src
-  appendData: (data: ArrayBuffer) => void // 追加音频数据
+  appendBuffer: (data: ArrayBuffer) => void // 追加音频数据
   stop: () => void // 停止并清理资源
   isActive: () => boolean // 检查 MediaSource 是否活跃
   getLoadedDuration: () => number // 返回duration
   downloadAudio: () => void // 返回duration
+  audioElement: HTMLAudioElement // 音频元素引用
+  currentTime: (time: number) => void // 返回duration
+  setTime: (time: number) => void // 返回duration
 }
 
 /**
@@ -109,21 +112,24 @@ interface AudioProcessor {
 
 // TODO: 动态缓冲区
 export function createAudioStreamProcessor(
+  audioElement: HTMLAudioElement, // 用于绑定到 <audio> 元素的 src
   stream: ReadableStream<Uint8Array>,
   mimeType: string = 'audio/mpeg'
 ): AudioProcessor {
   const mediaSource = new MediaSource()
   let sourceBuffer: SourceBuffer | null = null
+  let seekingAppend = false
   let isAppending = false
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
-  let blobs: Blob[] = []
+  let blobs: { duration: number; blob: Blob }[] = []
+  let bitrate = 96_000
 
   const audioUrl = URL.createObjectURL(mediaSource)
 
   mediaSource.addEventListener('sourceopen', async () => {
     if (!mediaSource.sourceBuffers.length) {
       sourceBuffer = mediaSource.addSourceBuffer(mimeType)
-      sourceBuffer.mode = 'sequence'
+      sourceBuffer.mode = 'segments'
 
       // 处理缓冲区更新时的事件
       sourceBuffer.addEventListener('updateend', () => {
@@ -136,12 +142,164 @@ export function createAudioStreamProcessor(
         ) {
           mediaSource.endOfStream()
         }
+        if (mediaSource.readyState === 'open') {
+          // _cleanUpBuffer()
+        }
       })
 
       await startReadingStream()
     }
   })
+  let _cleanUpBuffer = throttle(cleanUpBuffer, 1e3)
+  // 清理缓存函数
+  function cleanUpBuffer() {
+    if (!sourceBuffer || sourceBuffer.updating) return
 
+    const buffered = sourceBuffer.buffered
+    if (buffered.length === 0) return
+
+    const currentTime = audioElement.currentTime // 当前播放时间
+    const maxBufferDuration = 5 // 最大缓存时长前后各1分钟
+
+    const start = buffered.start(0) // 缓存的起始时间
+    const end = buffered.end(buffered.length - 1) // 缓存的结束时间
+
+    const startEnd = currentTime - maxBufferDuration
+    const endEnd = currentTime + maxBufferDuration
+
+    if (startEnd > start) {
+      sourceBuffer.remove(start, startEnd)
+      console.log(`清理缓存：移除 ${start} 到 ${startEnd} 的数据`)
+    }
+    if (endEnd + 5 < end) {
+      sourceBuffer.remove(endEnd, end + 5)
+      console.log(`清理缓存：移除 ${endEnd} 到 ${end} 的数据`)
+    }
+  }
+  audioElement.addEventListener('seeked', () => {
+    const seekTime = audioElement.currentTime // 用户跳转到的时间点
+    audioElement.pause()
+    loadAroundSeek(seekTime)
+  })
+  function combineBuffers(buffers: ArrayBuffer[]) {
+    const totalLength = buffers.reduce((sum, buf) => sum + buf.byteLength, 0)
+    const result = new Uint8Array(totalLength)
+    let offset = 0
+    for (const buf of buffers) {
+      result.set(new Uint8Array(buf), offset)
+      offset += buf.byteLength
+    }
+    return result.buffer
+  }
+  async function setBufferRange(
+    sourceBuffer: SourceBuffer,
+    startTime: number,
+    endTime: number,
+    mediaData: ArrayBuffer
+  ) {
+    // 1. 移除当前缓冲区外的范围
+    // if (sourceBuffer.buffered.length > 0) {
+    //   const currentStart = sourceBuffer.buffered.start(0)
+    //   const currentEnd = sourceBuffer.buffered.end(0)
+    //   if (currentStart < startTime || currentEnd > endTime) {
+    //     sourceBuffer.remove(currentStart, currentEnd)
+    //     await new Promise((resolve) =>
+    //       sourceBuffer.addEventListener('updateend', resolve, { once: true })
+    //     )
+    //   }
+    // }
+
+    // 2. 设置时间戳偏移
+    if (sourceBuffer.updating) {
+      await new Promise((resolve) =>
+        sourceBuffer.addEventListener('updateend', resolve, { once: true })
+      )
+    }
+    sourceBuffer.timestampOffset = startTime
+
+    // 3. 追加目标数据
+    sourceBuffer.appendBuffer(mediaData) // mediaData 为 80-90 秒数据
+    await waitUpdating()
+  }
+  const waitUpdating = async () =>
+    new Promise((resolve) => sourceBuffer!.addEventListener('updateend', resolve, { once: true }))
+
+  async function loadAroundSeek(seekTime: number) {
+    const bufferStart = sourceBuffer?.buffered?.start(0)
+    const bufferEnd = sourceBuffer?.buffered?.end(sourceBuffer.buffered?.length - 1)
+    console.log('当前缓存范围:', bufferStart, bufferEnd)
+    console.log('用户跳转到的时间点:', seekTime)
+    if (bufferStart !== undefined && bufferEnd) {
+      if (seekTime > bufferStart && seekTime < bufferEnd) {
+        console.log('跳转时间在缓存范围内，无需加载')
+        audioElement.play()
+        return
+      }
+    }
+
+    const bufferBefore = 10 // 前3分钟
+    const bufferAfter = 10 // 后3分钟
+    const startTime = Math.max(0, seekTime - bufferBefore) // 加载范围的起始时间
+    const endTime = seekTime + bufferAfter // 加载范围的结束时间
+
+    // 找到需要加载的 blobs
+
+    let findStartIndex = 0
+    let totalDuration = 0
+    for (let idx = 0; idx < blobs.length; idx++) {
+      const blobDuration = blobs[idx].duration
+      totalDuration += blobDuration
+      if (totalDuration > startTime) {
+        findStartIndex = idx
+        break
+      }
+    }
+
+    let findEndIndex = 0
+    for (let idx = findStartIndex; idx < blobs.length; idx++) {
+      const blobDuration = blobs[idx].duration
+      totalDuration += blobDuration
+      if (totalDuration > endTime) {
+        findEndIndex = idx
+        break
+      }
+    }
+    console.log(`findStartIndex: ${findStartIndex}, findEndIndex: ${findEndIndex}`)
+    const blobsToLoad = blobs.slice(findStartIndex, findEndIndex + 1)
+    if (findEndIndex <= findStartIndex) {
+      console.log('没有找到需要加载的 blobs')
+      return
+    }
+    // await setBufferRange(sourceBuffer, )
+    // await new Promise((resolve) => (sourceBuffer!.onupdateend = resolve))
+    if (sourceBuffer!.updating) {
+      await waitUpdating()
+    }
+    // 将找到的 blobs 追加到 SourceBuffer
+    seekingAppend = true
+    //TODO: 如果当前不在缓冲区才需要appendBuffer
+    // 清空当前 SourceBuffer（可选，根据需求决定）
+    if (sourceBuffer!.buffered.length > 0) {
+      const end = sourceBuffer!.buffered.end(sourceBuffer!.buffered.length - 1)
+      sourceBuffer!.remove(0, end)
+      await waitUpdating()
+      console.log(`清空了 SourceBuffer 的缓冲区： ${0}, ${end}`)
+    }
+    console.log('sourceBuffer.updating,', sourceBuffer!.updating)
+    sourceBuffer!.timestampOffset = 0
+
+    const buffers: ArrayBuffer[] = []
+    for (let b of blobsToLoad) {
+      const arrayBuffer = await b.blob.arrayBuffer()
+      buffers.push(arrayBuffer)
+      // await appendBuffer(arrayBuffer, true)
+    }
+    const combinedBuffer = combineBuffers(buffers)
+    console.log(`combinedBuffer:`, combinedBuffer.byteLength)
+    await appendBuffer(combinedBuffer, true)
+    await waitUpdating()
+    seekingAppend = false
+  }
   // 读取流并追加数据
   async function startReadingStream() {
     reader = stream.getReader()
@@ -157,7 +315,9 @@ export function createAudioStreamProcessor(
         }
         if (value) {
           await appendBuffer(value.buffer)
-          blobs.push(new Blob([value.buffer]))
+          const blob = new Blob([value.buffer], { type: mimeType })
+          const blobDuration = (blob.size * 8) / bitrate
+          blobs.push({ blob, duration: blobDuration })
         }
       }
     } catch (error) {
@@ -169,7 +329,10 @@ export function createAudioStreamProcessor(
   }
 
   // 追加数据到 SourceBuffer
-  async function appendBuffer(data: ArrayBuffer): Promise<void> {
+  async function appendBuffer(data: ArrayBuffer, seeking?: boolean): Promise<void> {
+    if (seekingAppend && !seeking) {
+      return
+    }
     if (!sourceBuffer || mediaSource.readyState !== 'open') {
       return
     }
@@ -178,6 +341,23 @@ export function createAudioStreamProcessor(
         sourceBuffer!.addEventListener('updateend', resolve, { once: true })
       })
     }
+    const seekTime = audioElement.currentTime
+    if (sourceBuffer.buffered?.length) {
+      const bufferStart = sourceBuffer?.buffered?.start(0)
+      const bufferEnd = sourceBuffer?.buffered?.end(sourceBuffer.buffered?.length - 1)
+      console.log('appendBuffer当前缓存范围:', bufferStart, bufferEnd)
+      if (seekTime < bufferStart) {
+        console.log('跳转时间小于缓存开始时间，无需appendBuffer')
+        return
+      }
+      if (bufferStart !== undefined && bufferEnd) {
+        if (seekTime + 5 > bufferStart && seekTime + 5 < bufferEnd) {
+          console.log('跳转时间在缓存范围内，无需appendBuffer')
+          return
+        }
+      }
+    }
+
     try {
       isAppending = true
       sourceBuffer.appendBuffer(data)
@@ -187,43 +367,71 @@ export function createAudioStreamProcessor(
     }
   }
   function downloadAudio() {
+    // 传输完毕才能下载，只下载部分音频数据会导致duration显示错误，播放错误
     if (blobs.length === 0) {
       console.warn('No audio data to download.')
       return
     }
     // 合并所有 blobs 为一个完整的音频 Blob
-    const audioBlob = new Blob(blobs, { type: mimeType })
+    const audioBlob = new Blob(
+      blobs.map((b) => b.blob),
+      { type: mimeType }
+    )
     const url = URL.createObjectURL(audioBlob)
     const a = document.createElement('a')
     a.href = url
-    // 设置下载文件名，基于 mimeType（如 audio/mpeg -> audio.mp3）
-    a.download = 'audio.' + (mimeType.split('/')[1] || 'mp3')
+    const ext = mimeType.split('/')[1]
+    a.download = 'audio.' + (ext === 'mpeg' ? 'mp3' : ext || 'mp3')
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
-  // 返回接口
+  const getLoadedDuration = () => {
+    const totalDuration = blobs.reduce((acc, blob) => acc + blob.duration, 0)
+    return totalDuration
+  }
+  const stop = () => {
+    if (reader) {
+      reader.cancel()
+      reader = null
+    }
+    if (mediaSource.readyState === 'open') {
+      mediaSource.endOfStream()
+    }
+    URL.revokeObjectURL(audioUrl)
+  }
+  const isActive = () => mediaSource.readyState === 'open'
+  const currentTime = (time: number) => (audioElement.currentTime = time)
+  const setTime = async (seekTime: number) => {
+    await loadAroundSeek(seekTime)
+    await asyncSleep(100)
+    audioElement.currentTime = seekTime
+  }
   return {
     audioUrl,
-    appendData: appendBuffer,
-    stop: () => {
-      if (reader) {
-        reader.cancel()
-        reader = null
-      }
-      if (mediaSource.readyState === 'open') {
-        mediaSource.endOfStream()
-      }
-      URL.revokeObjectURL(audioUrl)
-    },
-    isActive: () => mediaSource.readyState === 'open',
-    getLoadedDuration: () => {
-      if (sourceBuffer && sourceBuffer.buffered.length > 0) {
-        return sourceBuffer.buffered.end(sourceBuffer.buffered.length - 1)
-      }
-      return 0
-    },
+    appendBuffer,
+    stop,
+    isActive,
+    getLoadedDuration,
     downloadAudio,
+    audioElement,
+    currentTime,
+    setTime,
+  }
+}
+
+export const toFixed = (num: number | string, toFixed = 2) => {
+  return Number(Number(num).toFixed(toFixed))
+}
+
+export const throttle = (fn: () => void, wait: number) => {
+  let lastTime = 0
+  return function (...args: any) {
+    const now = new Date().getTime()
+    if (now - lastTime >= wait) {
+      fn.apply(args)
+      lastTime = now
+    }
   }
 }

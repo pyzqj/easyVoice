@@ -269,7 +269,7 @@ import { Sparkles } from 'lucide-vue-next'
 import { UploadFilled, Service } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
-import { createAudioStreamProcessor, mapZHVoiceName } from '@/utils'
+import { createAudioStreamProcessor, mapZHVoiceName, toFixed } from '@/utils'
 import DownloadList from '@/components/DownloadList.vue'
 import { AxiosError } from 'axios'
 import Notification from '@/assets/notification.mp3'
@@ -603,12 +603,17 @@ const generateAudioTask = async () => {
       pooling((stream as unknown as ResponseWrapper<GenerateResponse>).data!.id)
       return
     }
-    processor = createAudioStreamProcessor(stream as unknown as ReadableStream)
+    processor = createAudioStreamProcessor(
+      streamAudioRef.value!,
+      stream as unknown as ReadableStream
+    )
+    ;(globalThis as any).processor = processor
+    console.log('processor', processor)
     let itv = setInterval(() => {
       if (processor.isActive()) {
         const duration = processor.getLoadedDuration?.()
         if (!Number.isNaN(duration)) {
-          streamDuration.value = duration
+          streamDuration.value = toFixed(duration)
         }
         return
       }
