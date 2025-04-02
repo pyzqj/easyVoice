@@ -118,7 +118,6 @@ export function createAudioStreamProcessor(
 ): AudioProcessor {
   const mediaSource = new MediaSource()
   let sourceBuffer: SourceBuffer | null = null
-  let seekingAppend = false
   let isAppending = false
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
   let blobs: { duration: number; blob: Blob }[] = []
@@ -151,7 +150,7 @@ export function createAudioStreamProcessor(
     }
   })
   let _cleanUpBuffer = throttle(cleanUpBuffer, 1e3)
-  // 清理缓存函数
+  // TODO: 清理缓存
   function cleanUpBuffer() {
     if (!sourceBuffer || sourceBuffer.updating) return
 
@@ -181,74 +180,6 @@ export function createAudioStreamProcessor(
     audioElement.pause()
     loadAroundSeek(seekTime)
   })
-  function combineBuffers(buffers: ArrayBuffer[]) {
-    const totalLength = buffers.reduce((sum, buf) => sum + buf.byteLength, 0)
-    const result = new Uint8Array(totalLength)
-    let offset = 0
-    for (const buf of buffers) {
-      result.set(new Uint8Array(buf), offset)
-      offset += buf.byteLength
-    }
-    return result.buffer
-  }
-  async function setBufferRange(
-    sourceBuffer: SourceBuffer,
-    startTime: number,
-    endTime: number,
-    mediaData: ArrayBuffer
-  ) {
-    // 1. 移除当前缓冲区外的范围
-    // if (sourceBuffer.buffered.length > 0) {
-    //   const currentStart = sourceBuffer.buffered.start(0)
-    //   const currentEnd = sourceBuffer.buffered.end(0)
-    //   if (currentStart < startTime || currentEnd > endTime) {
-    //     sourceBuffer.remove(currentStart, currentEnd)
-    //     await new Promise((resolve) =>
-    //       sourceBuffer.addEventListener('updateend', resolve, { once: true })
-    //     )
-    //   }
-    // }
-
-    // 2. 设置时间戳偏移
-    if (sourceBuffer.updating) {
-      await new Promise((resolve) =>
-        sourceBuffer.addEventListener('updateend', resolve, { once: true })
-      )
-    }
-    sourceBuffer.timestampOffset = startTime
-
-    // 3. 追加目标数据
-    sourceBuffer.appendBuffer(mediaData) // mediaData 为 80-90 秒数据
-    await waitUpdating()
-  }
-  const waitUpdating = async () =>
-    new Promise((resolve) => sourceBuffer!.addEventListener('updateend', resolve, { once: true }))
-  async function clearSourceBuffer(sourceBuffer: SourceBuffer) {
-    if (!(sourceBuffer instanceof SourceBuffer)) {
-      console.error('参数必须是一个 SourceBuffer 对象')
-      return
-    }
-    const buffered = sourceBuffer.buffered
-    if (buffered.length === 0) {
-      console.log('缓冲区已为空，无需清空')
-      return
-    }
-    try {
-      for (let i = 0; i < buffered.length; i++) {
-        const start = buffered.start(i)
-        const end = buffered.end(i)
-        await new Promise((resolve) => {
-          if (!sourceBuffer.updating) {
-            sourceBuffer.remove(start, end)
-          }
-          sourceBuffer.addEventListener('updateend', resolve, { once: true })
-        })
-      }
-      console.log('所有缓冲区已清空')
-    } catch (error) {
-      console.error('清空缓冲区时出错:', error)
-    }
-  }
   async function loadAroundSeek(seekTime: number) {
     if (sourceBuffer?.buffered.length) {
       const bufferStart = sourceBuffer?.buffered?.start(0)
@@ -257,75 +188,11 @@ export function createAudioStreamProcessor(
       console.log('用户跳转到的时间点:', seekTime)
       if (bufferStart !== undefined && bufferEnd) {
         if (seekTime > bufferStart && seekTime < bufferEnd) {
-          console.log('跳转时间在缓存范围内，无需加载')
-          audioElement.play()
           return
         }
       }
+      //TODO:
     }
-
-    const bufferBefore = 10 // 前3分钟
-    const bufferAfter = 10 // 后3分钟
-    const startTime = Math.max(0, seekTime - bufferBefore) // 加载范围的起始时间
-    const endTime = seekTime + bufferAfter // 加载范围的结束时间
-
-    // 找到需要加载的 blobs
-
-    let findStartIndex = 0
-    let totalDuration = 0
-    for (let idx = 0; idx < blobs.length; idx++) {
-      const blobDuration = blobs[idx].duration
-      totalDuration += blobDuration
-      if (totalDuration > startTime) {
-        findStartIndex = idx
-        break
-      }
-    }
-
-    let findEndIndex = 0
-    for (let idx = findStartIndex; idx < blobs.length; idx++) {
-      const blobDuration = blobs[idx].duration
-      totalDuration += blobDuration
-      if (totalDuration > endTime) {
-        findEndIndex = idx
-        break
-      }
-    }
-    console.log(`findStartIndex: ${findStartIndex}, findEndIndex: ${findEndIndex}`)
-    const blobsToLoad = blobs.slice(findStartIndex, findEndIndex + 1)
-    if (findEndIndex <= findStartIndex) {
-      console.log('没有找到需要加载的 blobs')
-      return
-    }
-    // 创建新的 SourceBuffer
-    // if (mediaSource.sourceBuffers.length > 0) {
-    //   const oldSourceBuffer = mediaSource.sourceBuffers[0]
-    //   mediaSource.removeSourceBuffer(oldSourceBuffer)
-    // }
-    // sourceBuffer = mediaSource.addSourceBuffer(mimeType)
-    if (sourceBuffer!.updating) {
-      await waitUpdating()
-    }
-
-    seekingAppend = true
-    await clearSourceBuffer(sourceBuffer!)
-
-    if (sourceBuffer!.updating) {
-      await waitUpdating()
-    }
-
-    // sourceBuffer!.timestampOffset = 0
-
-    const buffers: ArrayBuffer[] = []
-    for (let b of blobsToLoad) {
-      const arrayBuffer = await b.blob.arrayBuffer()
-      buffers.push(arrayBuffer)
-    }
-    const combinedBuffer = combineBuffers(buffers)
-    console.log(`combinedBuffer:`, combinedBuffer.byteLength)
-    await appendBuffer(combinedBuffer, true)
-    await waitUpdating()
-    seekingAppend = false
   }
   // 读取流并追加数据
   async function startReadingStream() {
@@ -355,11 +222,7 @@ export function createAudioStreamProcessor(
     }
   }
 
-  // 追加数据到 SourceBuffer
-  async function appendBuffer(data: ArrayBuffer, seeking?: boolean): Promise<void> {
-    if (seekingAppend && !seeking) {
-      return
-    }
+  async function appendBuffer(data: ArrayBuffer): Promise<void> {
     if (!sourceBuffer || mediaSource.readyState !== 'open') {
       return
     }
@@ -367,22 +230,6 @@ export function createAudioStreamProcessor(
       await new Promise((resolve) => {
         sourceBuffer!.addEventListener('updateend', resolve, { once: true })
       })
-    }
-    const seekTime = audioElement.currentTime
-    if (sourceBuffer.buffered?.length) {
-      const bufferStart = sourceBuffer?.buffered?.start(0)
-      const bufferEnd = sourceBuffer?.buffered?.end(sourceBuffer.buffered?.length - 1)
-      console.log('appendBuffer当前缓存范围:', bufferStart, bufferEnd)
-      if (seekTime < bufferStart) {
-        console.log('跳转时间小于缓存开始时间，无需appendBuffer')
-        return
-      }
-      if (bufferStart !== undefined && bufferEnd) {
-        if (seekTime + 5 > bufferStart && seekTime + 5 < bufferEnd) {
-          console.log('跳转时间在缓存范围内，无需appendBuffer')
-          return
-        }
-      }
     }
 
     try {
