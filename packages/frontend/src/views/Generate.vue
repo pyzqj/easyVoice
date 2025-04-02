@@ -603,9 +603,18 @@ const generateAudioTask = async () => {
       pooling((stream as unknown as ResponseWrapper<GenerateResponse>).data!.id)
       return
     }
+    const onFinished = () => {
+      const result = {
+        audio: '',
+        file: '',
+        id: '',
+      }
+      updateAudioList(result)
+    }
     processor = createAudioStreamProcessor(
       streamAudioRef.value!,
-      stream as unknown as ReadableStream
+      stream as unknown as ReadableStream,
+      onFinished
     )
     ;(globalThis as any).processor = processor
     console.log('processor', processor)

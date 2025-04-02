@@ -101,6 +101,7 @@ interface AudioProcessor {
   audioElement: HTMLAudioElement // 音频元素引用
   currentTime: (time: number) => void // 返回duration
   setTime: (time: number) => void // 返回duration
+  finished: boolean
 }
 
 /**
@@ -114,7 +115,8 @@ interface AudioProcessor {
 export function createAudioStreamProcessor(
   audioElement: HTMLAudioElement, // 用于绑定到 <audio> 元素的 src
   stream: ReadableStream<Uint8Array>,
-  mimeType: string = 'audio/mpeg'
+  onFinished: () => void,
+  mimeType: string = 'audio/mpeg',
 ): AudioProcessor {
   const mediaSource = new MediaSource()
   let sourceBuffer: SourceBuffer | null = null
@@ -122,6 +124,7 @@ export function createAudioStreamProcessor(
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
   let blobs: { duration: number; blob: Blob }[] = []
   let bitrate = 96_000
+  let finished = false
 
   const audioUrl = URL.createObjectURL(mediaSource)
 
@@ -140,6 +143,7 @@ export function createAudioStreamProcessor(
           sourceBuffer?.buffered.length === 0
         ) {
           mediaSource.endOfStream()
+          onFinished()
         }
         if (mediaSource.readyState === 'open') {
           // _cleanUpBuffer()
@@ -282,6 +286,7 @@ export function createAudioStreamProcessor(
     await asyncSleep(100)
     audioElement.currentTime = seekTime
   }
+
   return {
     audioUrl,
     appendBuffer,
@@ -292,6 +297,7 @@ export function createAudioStreamProcessor(
     audioElement,
     currentTime,
     setTime,
+    finished,
   }
 }
 
