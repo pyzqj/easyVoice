@@ -116,7 +116,7 @@ export function createAudioStreamProcessor(
   audioElement: HTMLAudioElement, // 用于绑定到 <audio> 元素的 src
   stream: ReadableStream<Uint8Array>,
   onFinished: () => void,
-  mimeType: string = 'audio/mpeg',
+  mimeType: string = 'audio/mpeg'
 ): AudioProcessor {
   const mediaSource = new MediaSource()
   let sourceBuffer: SourceBuffer | null = null
@@ -143,7 +143,6 @@ export function createAudioStreamProcessor(
           sourceBuffer?.buffered.length === 0
         ) {
           mediaSource.endOfStream()
-          onFinished()
         }
         if (mediaSource.readyState === 'open') {
           // _cleanUpBuffer()
@@ -206,6 +205,7 @@ export function createAudioStreamProcessor(
         const { done, value } = await reader.read()
         if (done) {
           reader = null
+          onFinished()
           if (!sourceBuffer?.updating && mediaSource.readyState === 'open') {
             mediaSource.endOfStream()
           }

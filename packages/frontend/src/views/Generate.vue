@@ -228,12 +228,7 @@
         重置配置
       </el-button>
     </div>
-    <!-- <audio ref="streamAudioRef" controls></audio> -->
     <StreamButton ref="audioPlayerRef" :duration="streamDuration" />
-    <div>
-      时长：
-      {{ streamDuration }}
-    </div>
     <div class="generate-confetti">
       <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
     </div>
@@ -290,7 +285,6 @@ const previewLoading = ref(false)
 const audioPlayer = ref<HTMLAudioElement>()
 
 const voiceList = ref<Voice[]>(defaultVoiceList)
-const streamAudioRef = ref<HTMLAudioElement | null>(null)
 const audioPlayerRef = ref<InstanceType<typeof StreamButton> | null>(null)
 
 const streamDuration = ref<number>(0)
@@ -579,18 +573,7 @@ const generateAudio = async () => {
     generating.value = false
   }
 }
-const streamToBlob = async (stream: ReadableStream): Promise<Blob> => {
-  const reader = stream.getReader()
-  const chunks: Uint8Array[] = []
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    chunks.push(value)
-  }
-
-  return new Blob(chunks, { type: 'audio/mpeg' }) // 假设是 MPEG 音频，类型可根据实际调整
-}
 const generateAudioTask = async () => {
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
@@ -608,11 +591,13 @@ const generateAudioTask = async () => {
       return
     }
     const onFinished = () => {
+      generating.value = false
       const result = {
         audio: '',
         file: '',
         id: '',
       }
+      generationStore.updateProgress(100)
       updateAudioList(result)
     }
     console.log(`audioPlayerRef.audioRef:`, audioPlayerRef.value?.audioRef)
@@ -623,28 +608,20 @@ const generateAudioTask = async () => {
     )
     audioPlayerRef.value!.audioRef!.src = processor.audioUrl
     ;(globalThis as any).processor = processor
-    console.log('processor', processor)
+    console.log('processor', processor.isActive())
+    let mockProgress = 0
     let itv = setInterval(() => {
       if (processor.isActive()) {
         const duration = processor.getLoadedDuration?.()
         if (!Number.isNaN(duration)) {
           streamDuration.value = toFixed(duration)
         }
+        generationStore.updateProgress(mockProgress++)
         return
       }
       clearInterval(itv)
     }, 600)
-    if (streamAudioRef.value) {
-      audioPlayerRef.value!.audioRef!.src = processor.audioUrl
-      console.log(`audioPlayerRef.value!.audioRef:`, processor.audioUrl)
-      streamAudioRef.value.addEventListener('durationchange', () => {
-        console.log(`streamAudioRef.value!.duration`, streamAudioRef.value!.duration)
-        streamDuration.value =
-          streamAudioRef.value!.duration === Infinity ? 0 : streamAudioRef.value!.duration
-      })
-    }
-    generating.value = false
-    generationStore.updateProgress(100)
+
     progressStatus.value = '生成完成'
   } catch (error) {
     console.error('生成失败:', error)

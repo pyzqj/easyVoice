@@ -66,7 +66,7 @@ const stop = () => {
 }
 
 // 更新播放进度
-const updateProgress = () => {
+const updateProgress = (event: Event) => {
   if (audioRef.value) {
     currentTime.value = audioRef.value.currentTime
     progress.value = (currentTime.value / props.duration) * 100
