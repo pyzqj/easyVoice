@@ -228,7 +228,8 @@
         重置配置
       </el-button>
     </div>
-    <audio ref="streamAudioRef" controls></audio>
+    <!-- <audio ref="streamAudioRef" controls></audio> -->
+    <StreamButton ref="audioPlayerRef" :duration="streamDuration" />
     <div>
       时长：
       {{ streamDuration }}
@@ -273,6 +274,7 @@ import { createAudioStreamProcessor, mapZHVoiceName, toFixed } from '@/utils'
 import DownloadList from '@/components/DownloadList.vue'
 import { AxiosError } from 'axios'
 import Notification from '@/assets/notification.mp3'
+import StreamButton from '../components/StreamButton.vue'
 
 const generationStore = useGenerationStore()
 const configStore = useAudioConfigStore()
@@ -289,6 +291,8 @@ const audioPlayer = ref<HTMLAudioElement>()
 
 const voiceList = ref<Voice[]>(defaultVoiceList)
 const streamAudioRef = ref<HTMLAudioElement | null>(null)
+const audioPlayerRef = ref<InstanceType<typeof StreamButton> | null>(null)
+
 const streamDuration = ref<number>(0)
 const languages = ref([
   { code: 'zh-CN', name: '中文（简体）' },
@@ -611,11 +615,13 @@ const generateAudioTask = async () => {
       }
       updateAudioList(result)
     }
+    console.log(`audioPlayerRef.audioRef:`, audioPlayerRef.value?.audioRef)
     processor = createAudioStreamProcessor(
-      streamAudioRef.value!,
+      audioPlayerRef.value!.audioRef!,
       stream as unknown as ReadableStream,
       onFinished
     )
+    audioPlayerRef.value!.audioRef!.src = processor.audioUrl
     ;(globalThis as any).processor = processor
     console.log('processor', processor)
     let itv = setInterval(() => {
@@ -629,8 +635,8 @@ const generateAudioTask = async () => {
       clearInterval(itv)
     }, 600)
     if (streamAudioRef.value) {
-      streamAudioRef.value.src = processor.audioUrl
-      console.log(`streamAudioRef.value:`, streamAudioRef.value)
+      audioPlayerRef.value!.audioRef!.src = processor.audioUrl
+      console.log(`audioPlayerRef.value!.audioRef:`, processor.audioUrl)
       streamAudioRef.value.addEventListener('durationchange', () => {
         console.log(`streamAudioRef.value!.duration`, streamAudioRef.value!.duration)
         streamDuration.value =

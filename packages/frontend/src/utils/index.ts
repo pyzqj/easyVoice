@@ -179,11 +179,11 @@ export function createAudioStreamProcessor(
       console.log(`清理缓存：移除 ${endEnd} 到 ${end} 的数据`)
     }
   }
-  audioElement.addEventListener('seeked', () => {
-    const seekTime = audioElement.currentTime // 用户跳转到的时间点
-    audioElement.pause()
-    loadAroundSeek(seekTime)
-  })
+  // audioElement.addEventListener('seeked', () => {
+  //   const seekTime = audioElement.currentTime // 用户跳转到的时间点
+  //   audioElement.pause()
+  //   loadAroundSeek(seekTime)
+  // })
   async function loadAroundSeek(seekTime: number) {
     if (sourceBuffer?.buffered.length) {
       const bufferStart = sourceBuffer?.buffered?.start(0)
