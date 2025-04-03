@@ -291,11 +291,16 @@ const languages = ref([
   { code: 'en-CA', name: '英语（加拿大）' },
 ])
 const customColors = [
-  { color: '#ff4d4f', percentage: 20 }, // 红色：表示时间紧迫或低进度
-  { color: '#ffaa00', percentage: 40 }, // 橙色：表示仍需努力的中低进度
-  { color: '#fadb14', percentage: 60 }, // 黄色：表示中等偏上的进度
-  { color: '#52c41a', percentage: 80 }, // 绿色：表示接近完成
-  { color: '#1890ff', percentage: 100 }, // 蓝色：表示完全达成
+  { color: '#f5222d', percentage: 10 }, // 红色 (开始/较低)
+  { color: '#fa541c', percentage: 20 }, // 橘红
+  { color: '#fa8c16', percentage: 30 }, // 橘黄
+  { color: '#fadb14', percentage: 40 }, // 黄色
+  { color: '#fadb14', percentage: 50 }, // 黄色 (中间状态)
+  { color: '#a0d911', percentage: 60 }, // 酸橙绿
+  { color: '#73d13d', percentage: 70 }, // 浅绿
+  { color: '#52c41a', percentage: 80 }, // 绿色
+  { color: '#52c41a', percentage: 90 }, // 绿色 (接近完成)
+  { color: '#52c41a', percentage: 100 }, // 纯绿 (完成)
 ]
 
 const handleClose = (realClose: () => void) => {
@@ -524,6 +529,7 @@ const handleGenerate = () => {
 }
 const updateAudioList = (data: GenerateResponse) => {
   const audioItem = {
+    ...data,
     audio: data.audio,
     file: data.file,
     size: data.size,
@@ -591,20 +597,26 @@ const generateAudioTask = async () => {
       }
       generationStore.updateProgress(progress.increase())
     }
-    const onFinished = (newAudioUrl: string) => {
+    const onFinished = (newAudioUrl: string, blobs: Blob[]) => {
       audioPlayerRef.value!.audioRef!.src = newAudioUrl
+      const name = `${params.voice}-${params.text.slice(0, 10)}-${Date.now()}`
       generating.value = false
       const result = {
         audio: audioPlayerRef.value!.audioRef!.src,
-        file: audioPlayerRef.value!.audioRef!.src,
-        id: '',
-        // download: () => {
-        //   processor?.downloadAudio()
-        // },
+        file: name,
+        id: name,
+        name,
+        blobs,
       }
-      streamDuration.value = audioPlayerRef.value!.audioRef!.duration
       generationStore.updateProgress(100)
       updateAudioList(result)
+      audioPlayerRef.value!.audioRef?.addEventListener(
+        'loadedmetadata',
+        () => {
+          streamDuration.value = audioPlayerRef.value!.audioRef!.duration
+        },
+        { once: true }
+      )
     }
     const onError = (msg: string) => {
       console.error(msg)

@@ -113,7 +113,7 @@ export function createAudioStreamProcessor(
   stream: ReadableStream<Uint8Array>,
   onStart: () => void,
   onProgress: () => void,
-  onFinished: (audioNewUrl: string) => void,
+  onFinished: (audioNewUrl: string, blobs: Blob[]) => void,
   onError: (msg: string) => void,
   mimeType: string = 'audio/mpeg'
 ): AudioProcessor {
@@ -174,7 +174,10 @@ export function createAudioStreamProcessor(
         { type: mimeType }
       )
       const audioNewUrl = URL.createObjectURL(audioBlob)
-      onFinished(audioNewUrl)
+      onFinished(
+        audioNewUrl,
+        blobs.map((b) => b.blob)
+      )
     }
     try {
       while (true) {
@@ -215,11 +218,12 @@ export function createAudioStreamProcessor(
       isAppending = true
       sourceBuffer.appendBuffer(data)
     } catch (error) {
-      console.error('Error appending buffer:', error)
       isAppending = false
       if ((error as Error).name === 'QuotaExceededError') {
         stopBuffering = true
         console.log('stop buffering...')
+      } else {
+        console.error('Error appending buffer:', error)
       }
     }
   }

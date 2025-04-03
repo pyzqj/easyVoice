@@ -10,6 +10,8 @@ export interface Audio {
   isSrtLoading: boolean
   isPlaying: boolean
   progress: number
+  blobs?: Blob[]
+  name?: string
   download?: () => void
 }
 

@@ -147,7 +147,20 @@ const commonDownload = (
     }, 200)
   }
 }
+function downloadByBlobs(blobs: Blob[], name: string) {
+  const mimeType = 'audio/mpeg'
+  const audioBlob = new Blob(blobs, { type: mimeType })
+  const url = URL.createObjectURL(audioBlob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name?.endsWith('.mp3') ? name : `${name}.mp3`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
 const downloadAudio = (item: Audio, _: number) => {
+  if (item.blobs) return downloadByBlobs(item.blobs, item.name || 'audio')
   if (!item.file) return
   commonDownload(item, item.file, '音频', 'isDownloading')
 }
