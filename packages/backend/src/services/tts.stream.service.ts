@@ -42,9 +42,15 @@ export async function generateTTSStream(params: Required<EdgeSchema>, task: Task
   const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
   const cache = await audioCacheInstance.getAudio(cacheKey)
   if (cache) {
+    const data = {
+      ...cache,
+      text: '',
+    }
     logger.info(`Cache hit: ${voice} ${text.slice(0, 10)}`)
-    task?.context?.res?.setHeader('x-generate-tts-type', 'application/json')
-    task?.context?.res?.json({ code: 200, data: cache, success: true })
+    task.context?.res?.setHeader('x-generate-tts-type', 'application/json')
+    task.context?.res?.setHeader('Access-Control-Expose-Headers', 'x-generate-tts-type')
+    task.context?.res?.json({ code: 200, data, success: true })
+    task.endTask?.(task.id)
     return
   }
 
@@ -174,7 +180,7 @@ async function buildSegment(params: TTSParams, task: Task, dir: string = '') {
     headers: {
       'content-type': 'application/octet-stream',
       'x-generate-tts-type': 'stream',
-      'x-generate-tts-id': task.id,
+      'Access-Control-Expose-Headers-generate-tts-id': task.id,
     },
     onError: (err) => `Custom error: ${err.message}`,
     onEnd: () => {

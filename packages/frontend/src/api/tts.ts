@@ -90,9 +90,10 @@ export const createTask = async (data: TaskRequest) => {
   }
   return response.data
 }
+
 export const createTaskStream = async (data: TaskRequest) => {
   const response = await api.post<ReadableStream | ResponseWrapper<GenerateResponse>>(
-    `/createStream?mock=true`,
+    `/createStream`,
     data,
     {
       responseType: 'stream',
@@ -100,11 +101,12 @@ export const createTaskStream = async (data: TaskRequest) => {
       timeout: 0,
     }
   )
-  if (response.status !== 200) {
-    // stream to JSON
+  const ttsType = response.headers['x-generate-tts-type']
+  // const contentType = response.headers['content-type']
+  if (response.status !== 200 || ttsType === 'application/json') {
     const text = await new Response(response.data as any).text()
-    const errorData = JSON.parse(text)
-    return errorData
+    const responseData = JSON.parse(text)
+    return responseData
   }
   return response.data as ReadableStream
 }

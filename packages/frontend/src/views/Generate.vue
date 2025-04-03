@@ -426,10 +426,14 @@ const handle429 = (error: unknown) => {
 }
 const handle500 = (error: AxiosError) => {
   const { message } = error?.response?.data as any
-  if (message === 'English model cannot process non-English text') {
-    ElMessage.error(`英文模型不支持转中文语音哦！请切换模型到中文！`)
+  if (message) {
+    if (message === 'English model cannot process non-English text') {
+      ElMessage.error(`英文模型不支持转中文语音哦！请切换模型到中文！`)
+    } else {
+      ElMessage.error(message)
+    }
   } else {
-    ElMessage.error(message)
+    ElMessage.error(error.message)
   }
 }
 const playSuccessSound = () => {
@@ -506,6 +510,7 @@ const previewAudio = async () => {
     if (data?.audio) {
       updateConfig('previewAudioUrl', data?.audio)
     }
+    playSuccessSound()
     setTimeout(audioPlayer?.value!.play)
   } catch (error) {
     console.error('Preview failed:', error)
@@ -580,6 +585,14 @@ const generateAudioTask = async () => {
   try {
     const params = buildParams(inputText)
     const stream = await createTaskStream(params)
+    if (!(stream instanceof ReadableStream)) {
+      if (stream.code && stream.data) {
+        updateAudioList(stream.data)
+        return
+      }
+    }
+    console.log('typeof stream:', typeof stream)
+    console.log('stream instanceof ReadableStream :', stream instanceof ReadableStream)
     showStreamButton.value = true
     const onStart = () => {
       console.log('call onStart...')
