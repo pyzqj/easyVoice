@@ -29,6 +29,9 @@
     <div class="time-display">
       <span>{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
     </div>
+    <span class="close" @click="closeThisCard">
+      <el-icon><Close /></el-icon>
+    </span>
   </div>
 </template>
 
@@ -37,18 +40,32 @@ import { ref } from 'vue'
 import { debounce } from '@/utils'
 import { ElButton, ElSlider } from 'element-plus'
 import type { Arrayable } from 'element-plus/es/utils/index.mjs'
-import { VideoPlay, VideoPause, RefreshLeft, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
+import { VideoPlay, VideoPause, Close, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
 
 interface Prop {
   duration: number
 }
-
 const props = defineProps<Prop>()
+const emit = defineEmits(['close'])
 const audioRef = ref<HTMLAudioElement | null>(null)
 const progress = ref(0)
 const currentTime = ref(0)
 const isPlaying = ref(false)
 
+const closeThisCard = () => {
+  emit('close', realClose)
+}
+const realClose = () => {
+  stop()
+  isPlaying.value = false
+
+  progress.value = 0
+  currentTime.value = 0
+
+  if (audioRef.value) {
+    audioRef.value.src = ''
+  }
+}
 const toggle = () => {
   if (isPlaying.value) {
     pause().then(() => (isPlaying.value = false))
@@ -120,6 +137,7 @@ defineExpose({
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
   width: 300px;
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .tts-audio-player:hover {
@@ -160,5 +178,15 @@ defineExpose({
   background: rgba(255, 255, 255, 0.7);
   padding: 5px 10px;
   border-radius: 20px;
+}
+.close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.close:hover {
+  transform: scale(1.1);
 }
 </style>

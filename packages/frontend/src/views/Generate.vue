@@ -222,7 +222,12 @@
         :color="customColors"
       />
     </div>
-    <StreamButton ref="audioPlayerRef" v-show="showStreamButton" :duration="streamDuration" />
+    <StreamButton
+      ref="audioPlayerRef"
+      v-if="showStreamButton"
+      :duration="streamDuration"
+      @close="handleClose"
+    />
     <div class="generate-confetti">
       <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
     </div>
@@ -238,7 +243,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import ConfettiExplosion from 'vue-confetti-explosion'
 import { useGenerationStore } from '@/stores/generation'
 import { UploadFilled, Service } from '@element-plus/icons-vue'
-import { createAudioStreamProcessor, mapZHVoiceName, toFixed } from '@/utils'
+import {
+  asyncSleep,
+  createAudioStreamProcessor,
+  mapZHVoiceName,
+  mockProgress,
+  toFixed,
+} from '@/utils'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
 import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
 import DownloadList from '@/components/DownloadList.vue'
@@ -268,6 +279,7 @@ const audioPlayer = ref<HTMLAudioElement>()
 
 const voiceList = ref<Voice[]>(defaultVoiceList)
 const audioPlayerRef = ref<InstanceType<typeof StreamButton> | null>(null)
+const processor = ref<ReturnType<typeof createAudioStreamProcessor> | null>(null)
 
 const languages = ref([
   { code: 'zh-CN', name: '中文（简体）' },
@@ -286,6 +298,24 @@ const customColors = [
   { color: '#1890ff', percentage: 100 }, // 蓝色：表示完全达成
 ]
 
+const handleClose = (realClose: () => void) => {
+  if (generating.value) {
+    ElMessageBox.confirm('确定关闭吗，这将停止当前的生成任务', '操作提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }).then(() => {
+      realClose()
+      generating.value = false
+      generationStore.updateProgress(0)
+      processor.value!.stop()
+      showStreamButton.value = false
+    })
+  } else {
+    realClose()
+    showStreamButton.value = false
+  }
+}
 const reset = () => {
   ElMessageBox.confirm('确定将配置重置为初始状态', '操作提示', {
     confirmButtonText: '确定',
@@ -543,21 +573,26 @@ const generateAudioTask = async () => {
 
   try {
     const params = buildParams(inputText)
-    let processor: ReturnType<typeof createAudioStreamProcessor> | null = null
-
     const stream = await createTaskStream(params)
+    showStreamButton.value = true
     const onStart = () => {
-      showStreamButton.value = true
+      console.log('call onStart...')
     }
-    let mockProgress = 0
+    const progress = mockProgress(2)
     const onProgress = () => {
-      const duration = processor!.getLoadedDuration?.()
+      let duration = 0
+      if (!processor.value?.isActive()) {
+        duration = audioPlayerRef.value!.audioRef!.duration
+      } else {
+        duration = processor.value!.getLoadedDuration?.()
+      }
       if (!Number.isNaN(duration)) {
         streamDuration.value = toFixed(duration)
       }
-      generationStore.updateProgress(mockProgress++)
+      generationStore.updateProgress(progress.increase())
     }
-    const onFinished = () => {
+    const onFinished = (newAudioUrl: string) => {
+      audioPlayerRef.value!.audioRef!.src = newAudioUrl
       generating.value = false
       const result = {
         audio: audioPlayerRef.value!.audioRef!.src,
@@ -574,15 +609,16 @@ const generateAudioTask = async () => {
     const onError = (msg: string) => {
       console.error(msg)
     }
-    processor = createAudioStreamProcessor(
-      audioPlayerRef.value!.audioRef!,
+    processor.value = createAudioStreamProcessor(
       stream as unknown as ReadableStream,
       onStart,
       onProgress,
       onFinished,
       onError
     )
-    audioPlayerRef.value!.audioRef!.src = processor.audioUrl
+    await asyncSleep(100)
+    audioPlayerRef.value!.audioRef!.src = processor.value!.audioUrl
+    ;(globalThis as any).processor = processor
   } catch (error) {
     console.error('生成失败:', error)
     commonErrorHandler(error)

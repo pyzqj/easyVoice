@@ -98,9 +98,6 @@ interface AudioProcessor {
   isActive: () => boolean // 检查 MediaSource 是否活跃
   getLoadedDuration: () => number // 返回duration
   downloadAudio: () => void // 返回duration
-  audioElement: HTMLAudioElement // 音频元素引用
-  currentTime: (time: number) => void // 返回当前时间
-  setTime: (time: number) => void // 设置事件
   finished: boolean // 是否结束缓冲流
 }
 
@@ -113,11 +110,10 @@ interface AudioProcessor {
 
 // TODO: 动态缓冲区
 export function createAudioStreamProcessor(
-  audioElement: HTMLAudioElement, // 用于绑定到 <audio> 元素的 src
   stream: ReadableStream<Uint8Array>,
   onStart: () => void,
   onProgress: () => void,
-  onFinished: () => void,
+  onFinished: (audioNewUrl: string) => void,
   onError: (msg: string) => void,
   mimeType: string = 'audio/mpeg'
 ): AudioProcessor {
@@ -173,14 +169,12 @@ export function createAudioStreamProcessor(
       if (!sourceBuffer?.updating && mediaSource.readyState === 'open') {
         mediaSource.endOfStream()
       }
-      onFinished()
       const audioBlob = new Blob(
         blobs.map((b) => b.blob),
         { type: mimeType }
       )
       const audioNewUrl = URL.createObjectURL(audioBlob)
-      audioElement.src = audioNewUrl
-      console.log(`set audioElement new Url: ${audioNewUrl}`)
+      onFinished(audioNewUrl)
     }
     try {
       while (true) {
@@ -249,11 +243,7 @@ export function createAudioStreamProcessor(
     URL.revokeObjectURL(url)
   }
   const getLoadedDuration = () => {
-    if (!isActive()) {
-      return audioElement.duration
-    }
     const totalDuration = blobs.reduce((acc, blob) => acc + blob.duration, 0)
-    console.log('getLoadedDuration blobs.length:', blobs.length)
     return totalDuration
   }
   const stop = () => {
@@ -267,13 +257,6 @@ export function createAudioStreamProcessor(
     URL.revokeObjectURL(audioUrl)
   }
   const isActive = () => mediaSource.readyState === 'open'
-  const currentTime = (time: number) => (audioElement.currentTime = time)
-  const setTime = async (seekTime: number) => {
-    await loadAroundSeek(seekTime)
-    await asyncSleep(100)
-    audioElement.currentTime = seekTime
-  }
-
   return {
     audioUrl,
     appendBuffer,
@@ -281,9 +264,6 @@ export function createAudioStreamProcessor(
     isActive,
     getLoadedDuration,
     downloadAudio,
-    audioElement,
-    currentTime,
-    setTime,
     finished,
   }
 }
@@ -314,4 +294,29 @@ export const debounce = <T extends (...args: any[]) => void>(fn: T, wait: number
       timer = null
     }, wait)
   }
+}
+export const mockProgress = (toFixed = 2) => {
+  let currentProgress = 0
+  let lastCallTime: number | null = null
+  let velocity = 0
+
+  function increase() {
+    const now = Date.now()
+    if (lastCallTime !== null) {
+      const timeDiff = now - lastCallTime
+      const frequencyFactor = Math.min(Math.max(2000 / timeDiff, 0.1), 2)
+      velocity = velocity * 0.7 + frequencyFactor * 0.3
+    }
+    lastCallTime = now
+
+    const remaining = 100 - currentProgress
+    const baseIncrement = (Math.random() * 5 + 0.1) * velocity
+    const increment = Math.min(baseIncrement, remaining * 0.2) * (1 - currentProgress / 100)
+
+    currentProgress += increment
+    currentProgress = Math.min(currentProgress, 99.99)
+
+    return Number(currentProgress.toFixed(toFixed))
+  }
+  return { increase }
 }
