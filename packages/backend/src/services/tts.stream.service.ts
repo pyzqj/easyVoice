@@ -44,6 +44,8 @@ export async function generateTTSStream(params: Required<EdgeSchema>, task: Task
   if (cache) {
     const data = {
       ...cache,
+      file: path.parse(cache.audio).base,
+      srt: path.parse(cache.srt).base,
       text: '',
     }
     logger.info(`Cache hit: ${voice} ${text.slice(0, 10)}`)
