@@ -1,14 +1,11 @@
 <template>
   <div class="novel-to-audio-container">
-    <!-- 顶部标题 -->
     <div class="header">
       <h1>文本转语音</h1>
       <p class="subtitle">将您的文本一键转换为自然流畅的语音</p>
     </div>
 
-    <!-- 主要内容区域 -->
     <el-row :gutter="20">
-      <!-- 左侧：文本输入和文件上传 -->
       <el-col :span="16">
         <el-card class="input-card">
           <template #header>
@@ -115,9 +112,6 @@
                         style="margin-left: 10px; color: red"
                         v-if="voice.Name === 'zh-CN-YunxiNeural'"
                       />
-                      <!-- <span class="voice-personality">{{
-                        voice.VoicePersonalities.join(", ")
-                      }}</span> -->
                     </div>
                   </el-option>
                 </el-select>
@@ -151,7 +145,6 @@
             </el-form>
           </div>
 
-          <!-- AI 推荐设置 -->
           <div v-else class="ai-settings">
             <el-form label-position="top">
               <el-form-item label="OpenAI API URL">
@@ -174,16 +167,10 @@
 
               <el-form-item label="模型">
                 <el-input v-model="audioConfig.openaiModel" clearable placeholder="gpt-4o..." />
-                <!-- <el-select v-model="audioConfig.openaiModel" placeholder="选择模型" clearable>
-                  <el-option label="gpt-3.5-turbo" value="gpt-3.5-turbo" />
-                  <el-option label="gpt-4" value="gpt-4" />
-                  <el-option label="gpt-4-turbo" value="gpt-4-turbo" />
-                </el-select> -->
               </el-form-item>
             </el-form>
           </div>
 
-          <!-- 试听功能 -->
           <div class="preview-section">
             <el-form-item label="试听文本">
               <el-input
@@ -212,8 +199,6 @@
         </el-card>
       </el-col>
     </el-row>
-
-    <!-- 底部操作区域 -->
     <div class="action-area">
       <el-button
         type="primary"
@@ -247,10 +232,19 @@
 </template>
 
 <script setup lang="ts">
+import { AxiosError } from 'axios'
+import { Sparkles } from 'lucide-vue-next'
 import { ref, computed, onMounted, watch } from 'vue'
-import { useGenerationStore } from '@/stores/generation'
-import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import ConfettiExplosion from 'vue-confetti-explosion'
+import { useGenerationStore } from '@/stores/generation'
+import { UploadFilled, Service } from '@element-plus/icons-vue'
+import { createAudioStreamProcessor, mapZHVoiceName, toFixed } from '@/utils'
+import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
+import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
+import DownloadList from '@/components/DownloadList.vue'
+import Notification from '@/assets/notification.mp3'
+import StreamButton from '@/components/StreamButton.vue'
 import {
   generateTTS,
   getTask,
@@ -261,34 +255,24 @@ import {
   type ResponseWrapper,
   createTaskStream,
 } from '@/api/tts'
-import { Sparkles } from 'lucide-vue-next'
-import { UploadFilled, Service } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
-import { createAudioStreamProcessor, mapZHVoiceName, toFixed } from '@/utils'
-import DownloadList from '@/components/DownloadList.vue'
-import { AxiosError } from 'axios'
-import Notification from '@/assets/notification.mp3'
-import StreamButton from '../components/StreamButton.vue'
 
 const generationStore = useGenerationStore()
 const configStore = useAudioConfigStore()
 const { audioConfig } = configStore
-const confettiActive = ref(false)
 
+const streamDuration = ref<number>(0)
+
+const confettiActive = ref(false)
 const generating = ref(false)
-const progressStatus = ref('准备中...')
+const previewLoading = ref(false)
+const showStreamButton = ref(false)
 
 const successAudio = ref<HTMLAudioElement>()
-
-const previewLoading = ref(false)
 const audioPlayer = ref<HTMLAudioElement>()
 
 const voiceList = ref<Voice[]>(defaultVoiceList)
 const audioPlayerRef = ref<InstanceType<typeof StreamButton> | null>(null)
 
-const streamDuration = ref<number>(0)
-const showStreamButton = ref(false)
 const languages = ref([
   { code: 'zh-CN', name: '中文（简体）' },
   { code: 'zh-TW', name: '中文（繁体）' },
@@ -305,6 +289,7 @@ const customColors = [
   { color: '#52c41a', percentage: 80 }, // 绿色：表示接近完成
   { color: '#1890ff', percentage: 100 }, // 蓝色：表示完全达成
 ]
+
 const reset = () => {
   ElMessageBox.confirm('确定将配置重置为初始状态', '操作提示', {
     confirmButtonText: '确定',
@@ -328,7 +313,6 @@ const betterShowCN = (voiceList: Voice[]) => {
   }
   return voiceList
 }
-// 过滤后的语音列表
 const filteredVoices = computed(() => {
   return betterShowCN(
     voiceList.value.filter((voice) => {
@@ -340,7 +324,6 @@ const filteredVoices = computed(() => {
   )
 })
 
-// 是否可以生成语音
 const canGenerate = computed(() => {
   const { inputText, voiceMode, openaiBaseUrl, openaiKey, openaiModel, selectedVoice } = audioConfig
   if (!inputText.trim()) return false
@@ -352,7 +335,6 @@ const canGenerate = computed(() => {
   }
 })
 
-// 是否可以试听
 const canPreview = computed(() => {
   const { voiceMode, openaiBaseUrl, openaiKey, openaiModel, selectedVoice } = audioConfig
   if (voiceMode === 'preset') {
@@ -362,7 +344,6 @@ const canPreview = computed(() => {
   }
 })
 
-// 格式化语速显示
 const formatRate = (val: number) => {
   return val > 0 ? `+${val}%` : `${val}%`
 }
@@ -370,7 +351,6 @@ const formatVolume = (val: number) => {
   return val >= 0 ? `+${val}%` : `${val}%`
 }
 
-// 格式化音调显示
 const formatPitch = (val: number) => {
   return val >= 0 ? `+${val}Hz` : `${val}Hz`
 }
@@ -388,14 +368,28 @@ const commonErrorHandler = (error: unknown) => {
   if (error instanceof AxiosError) {
     const status = error.status
     switch (status) {
-      case 429:
-        return handle429(error)
       case 400:
         return handle400(error)
+      case 429:
+        return handle429(error)
       case 500:
         return handle500(error)
       default:
         ElMessage.error('请求失败！')
+    }
+  }
+}
+
+const handle400 = (error: AxiosError) => {
+  const { errors } = error?.response?.data as any
+  if (errors?.length) {
+    ElMessage.error(errors[0].message)
+  }
+}
+const handle429 = (error: unknown) => {
+  if (error instanceof AxiosError) {
+    if (error.status === 429) {
+      ElMessage.error('请求太快啦，小服务器扛不住！请稍后再试')
     }
   }
 }
@@ -407,39 +401,15 @@ const handle500 = (error: AxiosError) => {
     ElMessage.error(message)
   }
 }
-const handle429 = (error: unknown) => {
-  if (error instanceof AxiosError) {
-    if (error.status === 429) {
-      ElMessage.error('请求太快啦，小服务器扛不住！请稍后再试')
-    }
-  }
-}
-const handle400 = (error: AxiosError) => {
-  const { errors } = error?.response?.data as any
-  if (errors?.length) {
-    ElMessage.error(errors[0].message)
-  }
-}
 const playSuccessSound = () => {
   if (successAudio.value) {
-    successAudio.value.currentTime = 0 // 重置到开头，避免重复点击无效
+    successAudio.value.currentTime = 0
     successAudio.value.play().catch((error) => {
       console.error('播放音效失败:', error)
     })
   }
 }
-// 加载语音数据
-onMounted(async () => {
-  successAudio.value = new Audio(Notification)
-  try {
-    const response = await getVoiceList()
-    voiceList.value = response?.data!
-  } catch (error) {
-    handle429(error)
-  }
-})
 
-// 处理文件上传
 const handleFile = (file: any) => {
   const reader = new FileReader()
   const { name, type } = file.raw
@@ -457,12 +427,10 @@ const handleFile = (file: any) => {
   reader.readAsText(file.raw)
 }
 
-// 清空文本
 const clearText = () => {
   updateConfig('inputText', '')
 }
 
-// 根据语言和性别过滤语音
 const filterVoices = () => {
   const { selectedVoice } = audioConfig
   const isCurrentVoiceValid = filteredVoices.value.some((v) => v.Name === selectedVoice)
@@ -475,6 +443,7 @@ const filterVoices = () => {
     updateConfig('selectedVoice', '')
   }
 }
+
 const buildParams = (text: string) => {
   const { selectedVoice, rate, pitch, volume, openaiBaseUrl, openaiKey, openaiModel, voiceMode } =
     audioConfig
@@ -495,6 +464,7 @@ const buildParams = (text: string) => {
   }
   return params
 }
+
 const previewAudio = async () => {
   const { previewText } = audioConfig
   if (!previewText.trim() || !canPreview.value) return
@@ -523,8 +493,7 @@ const handleGenerate = () => {
   if (!inputText.trim() || !canGenerate.value) return
   if (inputText.length < 200) {
     console.warn('[handleGenerate]Input text is too short, generating directly...')
-    generateAudioTask()
-    // generateAudio()
+    generateAudio()
   } else {
     console.warn('[handleGenerate]Input text is long, creating task...')
     generateAudioTask()
@@ -543,7 +512,6 @@ const updateAudioList = (data: GenerateResponse) => {
   }
   const newAudioList = [...generationStore.audioList, audioItem]
   generationStore.updateAudioList(newAudioList)
-  progressStatus.value = '生成完成！'
   ElMessage.success('语音生成成功！')
   playSuccessSound()
   generating.value = false
@@ -559,7 +527,6 @@ const generateAudio = async () => {
 
   generating.value = true
   generationStore.updateProgress(0)
-  progressStatus.value = '准备中...'
 
   try {
     const params = buildParams(inputText)
@@ -580,7 +547,6 @@ const generateAudioTask = async () => {
   if (!inputText.trim() || !canGenerate.value) return
   generating.value = true
   generationStore.updateProgress(0)
-  progressStatus.value = '准备中...'
 
   try {
     const params = buildParams(inputText)
@@ -628,64 +594,21 @@ const generateAudioTask = async () => {
     audioPlayerRef.value!.audioRef!.src = processor.audioUrl
     ;(globalThis as any).processor = processor
     console.log('processor', processor.isActive())
-
-    progressStatus.value = '生成完成'
   } catch (error) {
     console.error('生成失败:', error)
     commonErrorHandler(error)
     generating.value = false
   }
 }
-const pooling = async (taskId: string) => {
-  const clear = () => {
-    if (intervalId) {
-      generating.value = false
-      clearInterval(intervalId)
-    }
+onMounted(async () => {
+  successAudio.value = new Audio(Notification)
+  try {
+    const response = await getVoiceList()
+    voiceList.value = response?.data!
+  } catch (error) {
+    handle429(error)
   }
-  let intervalId = window.setInterval(async () => {
-    try {
-      const { data } = await getTask({ id: taskId })
-      const { status, progress: currentProgress, message, result } = data!
-      console.log(`getTask data:`, data)
-      const success = status === 'completed'
-      const failed = status === 'failed'
-      const pending = status === 'pending'
-
-      if (!pending) clear()
-      if (failed) {
-        clear()
-        console.error(message)
-        ElMessage.error(`生成失败: ${message}`)
-        return
-      }
-      if (success) {
-        console.log('result:', result)
-        updateAudioList(result)
-        return
-      }
-
-      // 更新进度和状态
-      generationStore.updateProgress(currentProgress)
-
-      // 更新进度状态文本
-      if (currentProgress < 20) {
-        progressStatus.value = '分析文本中...'
-      } else if (currentProgress < 40) {
-        progressStatus.value = '生成语音中...'
-      } else if (currentProgress < 70) {
-        progressStatus.value = '处理音频中...'
-      } else if (currentProgress < 90) {
-        progressStatus.value = '优化音频质量...'
-      } else {
-        progressStatus.value = '即将完成...'
-      }
-    } catch (error) {
-      console.error('获取进度失败:', error)
-      clear()
-    }
-  }, 2000)
-}
+})
 </script>
 
 <style scoped>

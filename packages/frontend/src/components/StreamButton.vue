@@ -1,11 +1,6 @@
 <template>
   <div class="tts-audio-player">
-    <audio
-      ref="audioRef"
-      @timeupdate="updateProgress"
-      @loadedmetadata="updateDuration"
-      @ended="onended"
-    >
+    <audio ref="audioRef" @timeupdate="updateProgress" @ended="onended">
       你的浏览器不支持音频播放。
     </audio>
     <div class="controls">
@@ -34,19 +29,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { ElButton, ElSlider } from 'element-plus'
-import { VideoPlay, VideoPause, RefreshLeft } from '@element-plus/icons-vue'
-import type { Arrayable } from 'element-plus/es/utils/index.mjs'
+import { ref } from 'vue'
 import { debounce } from '@/utils'
+import { ElButton, ElSlider } from 'element-plus'
+import type { Arrayable } from 'element-plus/es/utils/index.mjs'
+import { VideoPlay, VideoPause, RefreshLeft } from '@element-plus/icons-vue'
+
 interface Prop {
   duration: number
 }
+
 const props = defineProps<Prop>()
-// 定义响应式变量
 const audioRef = ref<HTMLAudioElement | null>(null)
-const progress = ref(0) // 播放进度（百分比）
-const currentTime = ref(0) // 当前播放时间（秒）
+const progress = ref(0)
+const currentTime = ref(0)
 const isPlaying = ref(false)
 
 const toggle = () => {
@@ -56,13 +52,10 @@ const toggle = () => {
     play().then(() => (isPlaying.value = true))
   }
 }
-// 播放音频
-const play = async () => audioRef.value!.play()
 
-// 暂停音频
+const play = async () => audioRef.value!.play()
 const pause = async () => audioRef.value!.pause()
 
-// 停止音频并重置进度
 const stop = () => {
   if (audioRef.value) {
     audioRef.value.pause()
@@ -72,26 +65,16 @@ const stop = () => {
   }
 }
 
-// 更新播放进度
-const updateProgress = (event: Event) => {
+const updateProgress = () => {
   if (audioRef.value) {
     currentTime.value = audioRef.value.currentTime
     progress.value = (currentTime.value / props.duration) * 100
   }
 }
 
-// 更新音频时长（从元数据加载时触发）
-const updateDuration = () => {
-  if (audioRef.value) {
-    // props.duration = audioRef.value.duration
-  }
-}
-
 const onended = () => {
   isPlaying.value = false
 }
-
-// 拖动进度条时调整播放位置
 
 const seek = (value: Arrayable<number>) => {
   if (Array.isArray(value)) return
@@ -106,7 +89,6 @@ const input = debounce((value: Arrayable<number>) => {
   }
 }, 100)
 
-// 格式化时间（分钟:秒）
 const formatTime = (time: number) => {
   const minutes = Math.floor(time / 60)
   const seconds = Math.floor(time % 60)
