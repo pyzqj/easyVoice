@@ -594,6 +594,14 @@ const generateAudioTask = async () => {
     const onStart = () => {
       showStreamButton.value = true
     }
+    let mockProgress = 0
+    const onProgress = () => {
+      const duration = processor!.getLoadedDuration?.()
+      if (!Number.isNaN(duration)) {
+        streamDuration.value = toFixed(duration)
+      }
+      generationStore.updateProgress(mockProgress++)
+    }
     const onFinished = () => {
       generating.value = false
       const result = {
@@ -601,6 +609,7 @@ const generateAudioTask = async () => {
         file: '',
         id: '',
       }
+      streamDuration.value = audioPlayerRef.value!.audioRef!.duration
       generationStore.updateProgress(100)
       updateAudioList(result)
     }
@@ -612,24 +621,13 @@ const generateAudioTask = async () => {
       audioPlayerRef.value!.audioRef!,
       stream as unknown as ReadableStream,
       onStart,
+      onProgress,
       onFinished,
       onError
     )
     audioPlayerRef.value!.audioRef!.src = processor.audioUrl
     ;(globalThis as any).processor = processor
     console.log('processor', processor.isActive())
-    let mockProgress = 0
-    let itv = setInterval(() => {
-      if (processor.isActive()) {
-        const duration = processor.getLoadedDuration?.()
-        if (!Number.isNaN(duration)) {
-          streamDuration.value = toFixed(duration)
-        }
-        generationStore.updateProgress(mockProgress++)
-        return
-      }
-      clearInterval(itv)
-    }, 600)
 
     progressStatus.value = '生成完成'
   } catch (error) {

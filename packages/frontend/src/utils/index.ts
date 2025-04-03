@@ -116,6 +116,7 @@ export function createAudioStreamProcessor(
   audioElement: HTMLAudioElement, // 用于绑定到 <audio> 元素的 src
   stream: ReadableStream<Uint8Array>,
   onStart: () => void,
+  onProgress: () => void,
   onFinished: () => void,
   onError: (msg: string) => void,
   mimeType: string = 'audio/mpeg'
@@ -127,7 +128,7 @@ export function createAudioStreamProcessor(
   let blobs: { duration: number; blob: Blob }[] = []
   let bitrate = 96_000
   let finished = false
-
+  let stopBuffering = false
   const audioUrl = URL.createObjectURL(mediaSource)
 
   mediaSource.addEventListener('sourceopen', async () => {
@@ -202,15 +203,25 @@ export function createAudioStreamProcessor(
   // 读取流并追加数据
   async function startReadingStream() {
     reader = stream.getReader()
+    const cleanup = () => {
+      reader = null
+      if (!sourceBuffer?.updating && mediaSource.readyState === 'open') {
+        mediaSource.endOfStream()
+      }
+      onFinished()
+      const audioBlob = new Blob(
+        blobs.map((b) => b.blob),
+        { type: mimeType }
+      )
+      const audioNewUrl = URL.createObjectURL(audioBlob)
+      audioElement.src = audioNewUrl
+      console.log(`set audioElement new Url: ${audioNewUrl}`)
+    }
     try {
       while (true) {
         const { done, value } = await reader.read()
         if (done) {
-          reader = null
-          onFinished()
-          if (!sourceBuffer?.updating && mediaSource.readyState === 'open') {
-            mediaSource.endOfStream()
-          }
+          cleanup()
           break
         }
         if (value) {
@@ -218,6 +229,7 @@ export function createAudioStreamProcessor(
           const blob = new Blob([value.buffer], { type: mimeType })
           const blobDuration = (blob.size * 8) / bitrate
           blobs.push({ blob, duration: blobDuration })
+          onProgress()
         }
       }
     } catch (error) {
@@ -230,6 +242,7 @@ export function createAudioStreamProcessor(
   }
 
   async function appendBuffer(data: ArrayBuffer): Promise<void> {
+    if (stopBuffering) return
     if (!sourceBuffer || mediaSource.readyState !== 'open') {
       return
     }
@@ -245,6 +258,10 @@ export function createAudioStreamProcessor(
     } catch (error) {
       console.error('Error appending buffer:', error)
       isAppending = false
+      if ((error as Error).name === 'QuotaExceededError') {
+        stopBuffering = true
+        console.log('stop buffering...')
+      }
     }
   }
   function downloadAudio() {
@@ -269,7 +286,11 @@ export function createAudioStreamProcessor(
     URL.revokeObjectURL(url)
   }
   const getLoadedDuration = () => {
+    if (!isActive()) {
+      return audioElement.duration
+    }
     const totalDuration = blobs.reduce((acc, blob) => acc + blob.duration, 0)
+    console.log('getLoadedDuration blobs.length:', blobs.length)
     return totalDuration
   }
   const stop = () => {
@@ -308,22 +329,25 @@ export const toFixed = (num: number | string, toFixed = 2) => {
   return Number(Number(num).toFixed(toFixed))
 }
 
-export const throttle = (fn: () => void, wait: number) => {
+export const throttle = <T extends (...args: any[]) => void>(fn: T, wait: number) => {
   let lastTime = 0
-  return function (...args: any) {
-    const now = new Date().getTime()
+  return (...args: Parameters<T>): void => {
+    const now = Date.now()
     if (now - lastTime >= wait) {
-      fn.apply(null, args)
+      fn(...args)
       lastTime = now
     }
   }
 }
-export const debounce = (fn: (...args: any) => void, wait: number) => {
+
+export const debounce = <T extends (...args: any[]) => void>(fn: T, wait: number) => {
   let timer: NodeJS.Timeout | null = null
-  return function (...args: any) {
-    if (timer) return
+  return (...args: Parameters<T>): void => {
+    if (timer) {
+      clearTimeout(timer)
+    }
     timer = setTimeout(() => {
-      fn.apply(null, args)
+      fn(...args)
       timer = null
     }, wait)
   }

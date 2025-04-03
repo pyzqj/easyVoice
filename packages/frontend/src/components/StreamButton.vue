@@ -1,6 +1,11 @@
 <template>
   <div class="tts-audio-player">
-    <audio ref="audioRef" @timeupdate="updateProgress" @loadedmetadata="updateDuration">
+    <audio
+      ref="audioRef"
+      @timeupdate="updateProgress"
+      @loadedmetadata="updateDuration"
+      @ended="onended"
+    >
       你的浏览器不支持音频播放。
     </audio>
     <div class="controls">
@@ -80,6 +85,10 @@ const updateDuration = () => {
   if (audioRef.value) {
     // props.duration = audioRef.value.duration
   }
+}
+
+const onended = () => {
+  isPlaying.value = false
 }
 
 // 拖动进度条时调整播放位置
