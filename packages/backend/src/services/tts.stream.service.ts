@@ -96,6 +96,7 @@ async function generateWithLLMStream(task: Task) {
       )
     }
     buildSegmentList(formatLlmSegments(llmSegments), task)
+    task?.endTask?.(task.id)
   } else {
     logger.info('Splitting text into multiple segments:', segments.length)
     let finalSegments = []
@@ -216,6 +217,7 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
   const processSegment = async (index: number, maxRetries = 3): Promise<void> => {
     if (index >= totalSegments) {
       outputStream.end()
+      task?.endTask?.(task.id)
       return
     }
 
@@ -241,7 +243,7 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
       await audioStream.pipe(outputStream, { end: false })
 
       completedSegments++
-      logger.info(`processing text:\n ${segment.text}`)
+      logger.info(`processing text:\n ${segment.text.slice(0, 10)}...`)
       logger.info(`Segment ${index + 1}/${totalSegments} completed. Progress: ${progress()}%`)
       await processSegment(index + 1)
     } catch (err) {

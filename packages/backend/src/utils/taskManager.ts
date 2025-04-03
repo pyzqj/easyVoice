@@ -93,6 +93,7 @@ class TaskManager {
     task.progress = 100
     task.updatedAt = new Date()
     this.tasks.set(taskId, task)
+    console.log(`Task ${taskId} completed`)
     return task
   }
   isTaskPending(taskId: string) {
