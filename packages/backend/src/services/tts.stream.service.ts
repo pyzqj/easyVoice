@@ -241,7 +241,9 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
     try {
       const audioStream = await generateWithRetry()
       await audioStream.pipe(outputStream, { end: false })
-
+      await new Promise((resolve) => {
+        audioStream.on('end', resolve)
+      })
       completedSegments++
       logger.info(`processing text:\n ${segment.text.slice(0, 10)}...`)
       logger.info(`Segment ${index + 1}/${totalSegments} completed. Progress: ${progress()}%`)
