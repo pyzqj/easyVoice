@@ -102,8 +102,12 @@ export const createTaskStream = async (data: TaskRequest) => {
     }
   )
   const ttsType = response.headers['x-generate-tts-type']
-  // const contentType = response.headers['content-type']
-  if (response.status !== 200 || ttsType === 'application/json') {
+  const contentType = response.headers['content-type']
+  if (
+    response.status !== 200 ||
+    ttsType === 'application/json' ||
+    contentType.includes('application/json')
+  ) {
     const text = await new Response(response.data as any).text()
     const responseData = JSON.parse(text)
     return responseData

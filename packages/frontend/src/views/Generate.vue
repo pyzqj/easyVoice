@@ -415,6 +415,8 @@ const handle400 = (error: AxiosError) => {
   const { errors } = error?.response?.data as any
   if (errors?.length) {
     ElMessage.error(errors[0].message)
+  } else {
+    ElMessage.error(error.message || '操作失败!')
   }
 }
 const handle429 = (error: unknown) => {
@@ -433,7 +435,7 @@ const handle500 = (error: AxiosError) => {
       ElMessage.error(message)
     }
   } else {
-    ElMessage.error(error.message)
+    ElMessage.error(error.message || '操作失败!')
   }
 }
 const playSuccessSound = () => {
