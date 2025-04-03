@@ -18,6 +18,7 @@
         :max="100"
         :show-tooltip="false"
         @change="seek"
+        @input="input"
         class="progress-slider"
       />
     </div>
@@ -32,6 +33,7 @@ import { ref, computed } from 'vue'
 import { ElButton, ElSlider } from 'element-plus'
 import { VideoPlay, VideoPause, RefreshLeft } from '@element-plus/icons-vue'
 import type { Arrayable } from 'element-plus/es/utils/index.mjs'
+import { debounce } from '@/utils'
 interface Prop {
   duration: number
 }
@@ -88,6 +90,12 @@ const seek = (value: Arrayable<number>) => {
     audioRef.value.currentTime = (value / 100) * props.duration
   }
 }
+const input = debounce((value: Arrayable<number>) => {
+  if (Array.isArray(value)) return
+  if (audioRef.value) {
+    audioRef.value.currentTime = (value / 100) * props.duration
+  }
+}, 100)
 
 // 格式化时间（分钟:秒）
 const formatTime = (time: number) => {
@@ -107,7 +115,7 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   padding: 20px;
-  background: linear-gradient(135deg, #e0f7fa, #b2ebf2);
+  background: white;
   border-radius: 15px;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
   width: 300px;

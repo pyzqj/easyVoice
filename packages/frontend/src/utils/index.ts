@@ -115,7 +115,9 @@ interface AudioProcessor {
 export function createAudioStreamProcessor(
   audioElement: HTMLAudioElement, // 用于绑定到 <audio> 元素的 src
   stream: ReadableStream<Uint8Array>,
+  onStart: () => void,
   onFinished: () => void,
+  onError: (msg: string) => void,
   mimeType: string = 'audio/mpeg'
 ): AudioProcessor {
   const mediaSource = new MediaSource()
@@ -148,7 +150,7 @@ export function createAudioStreamProcessor(
           // _cleanUpBuffer()
         }
       })
-
+      onStart()
       await startReadingStream()
     }
   })
@@ -223,6 +225,7 @@ export function createAudioStreamProcessor(
       if (mediaSource.readyState === 'open') {
         mediaSource.endOfStream('network')
       }
+      onError((error as Error).message)
     }
   }
 
@@ -310,8 +313,18 @@ export const throttle = (fn: () => void, wait: number) => {
   return function (...args: any) {
     const now = new Date().getTime()
     if (now - lastTime >= wait) {
-      fn.apply(args)
+      fn.apply(null, args)
       lastTime = now
     }
+  }
+}
+export const debounce = (fn: (...args: any) => void, wait: number) => {
+  let timer: NodeJS.Timeout | null = null
+  return function (...args: any) {
+    if (timer) return
+    timer = setTimeout(() => {
+      fn.apply(null, args)
+      timer = null
+    }, wait)
   }
 }

@@ -228,7 +228,7 @@
         重置配置
       </el-button>
     </div>
-    <StreamButton ref="audioPlayerRef" :duration="streamDuration" />
+    <StreamButton ref="audioPlayerRef" v-show="showStreamButton" :duration="streamDuration" />
     <div class="generate-confetti">
       <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
     </div>
@@ -288,6 +288,7 @@ const voiceList = ref<Voice[]>(defaultVoiceList)
 const audioPlayerRef = ref<InstanceType<typeof StreamButton> | null>(null)
 
 const streamDuration = ref<number>(0)
+const showStreamButton = ref(false)
 const languages = ref([
   { code: 'zh-CN', name: '中文（简体）' },
   { code: 'zh-TW', name: '中文（繁体）' },
@@ -590,6 +591,9 @@ const generateAudioTask = async () => {
       pooling((stream as unknown as ResponseWrapper<GenerateResponse>).data!.id)
       return
     }
+    const onStart = () => {
+      showStreamButton.value = true
+    }
     const onFinished = () => {
       generating.value = false
       const result = {
@@ -600,11 +604,16 @@ const generateAudioTask = async () => {
       generationStore.updateProgress(100)
       updateAudioList(result)
     }
+    const onError = (msg: string) => {
+      console.error(msg)
+    }
     console.log(`audioPlayerRef.audioRef:`, audioPlayerRef.value?.audioRef)
     processor = createAudioStreamProcessor(
       audioPlayerRef.value!.audioRef!,
       stream as unknown as ReadableStream,
-      onFinished
+      onStart,
+      onFinished,
+      onError
     )
     audioPlayerRef.value!.audioRef!.src = processor.audioUrl
     ;(globalThis as any).processor = processor
