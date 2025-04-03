@@ -131,7 +131,7 @@ const commonDownload = (
 ) => {
   try {
     item[loadingProp] = true
-    const url = downloadFile(file)
+    const url = file.startsWith('blob') ? file : downloadFile(file)
     const link = document.createElement('a')
     link.target = '_blank'
     link.href = url

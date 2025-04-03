@@ -99,9 +99,9 @@ interface AudioProcessor {
   getLoadedDuration: () => number // 返回duration
   downloadAudio: () => void // 返回duration
   audioElement: HTMLAudioElement // 音频元素引用
-  currentTime: (time: number) => void // 返回duration
-  setTime: (time: number) => void // 返回duration
-  finished: boolean
+  currentTime: (time: number) => void // 返回当前时间
+  setTime: (time: number) => void // 设置事件
+  finished: boolean // 是否结束缓冲流
 }
 
 /**
@@ -136,7 +136,6 @@ export function createAudioStreamProcessor(
       sourceBuffer = mediaSource.addSourceBuffer(mimeType)
       sourceBuffer.mode = 'sequence'
 
-      // 处理缓冲区更新时的事件
       sourceBuffer.addEventListener('updateend', () => {
         isAppending = false
         // 如果流已结束且缓冲区无数据，结束 MediaSource
@@ -147,45 +146,11 @@ export function createAudioStreamProcessor(
         ) {
           mediaSource.endOfStream()
         }
-        if (mediaSource.readyState === 'open') {
-          // _cleanUpBuffer()
-        }
       })
       onStart()
       await startReadingStream()
     }
   })
-  let _cleanUpBuffer = throttle(cleanUpBuffer, 1e3)
-  // TODO: 清理缓存
-  function cleanUpBuffer() {
-    if (!sourceBuffer || sourceBuffer.updating) return
-
-    const buffered = sourceBuffer.buffered
-    if (buffered.length === 0) return
-
-    const currentTime = audioElement.currentTime // 当前播放时间
-    const maxBufferDuration = 5 // 最大缓存时长前后各1分钟
-
-    const start = buffered.start(0) // 缓存的起始时间
-    const end = buffered.end(buffered.length - 1) // 缓存的结束时间
-
-    const startEnd = currentTime - maxBufferDuration
-    const endEnd = currentTime + maxBufferDuration
-
-    if (startEnd > start) {
-      sourceBuffer.remove(start, startEnd)
-      console.log(`清理缓存：移除 ${start} 到 ${startEnd} 的数据`)
-    }
-    if (endEnd + 5 < end) {
-      sourceBuffer.remove(endEnd, end + 5)
-      console.log(`清理缓存：移除 ${endEnd} 到 ${end} 的数据`)
-    }
-  }
-  // audioElement.addEventListener('seeked', () => {
-  //   const seekTime = audioElement.currentTime // 用户跳转到的时间点
-  //   audioElement.pause()
-  //   loadAroundSeek(seekTime)
-  // })
   async function loadAroundSeek(seekTime: number) {
     if (sourceBuffer?.buffered.length) {
       const bufferStart = sourceBuffer?.buffered?.start(0)
@@ -265,12 +230,10 @@ export function createAudioStreamProcessor(
     }
   }
   function downloadAudio() {
-    // 传输完毕才能下载，只下载部分音频数据会导致duration显示错误，播放错误
     if (blobs.length === 0) {
       console.warn('No audio data to download.')
       return
     }
-    // 合并所有 blobs 为一个完整的音频 Blob
     const audioBlob = new Blob(
       blobs.map((b) => b.blob),
       { type: mimeType }

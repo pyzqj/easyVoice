@@ -213,11 +213,6 @@
         重置配置
       </el-button>
     </div>
-    <StreamButton ref="audioPlayerRef" v-show="showStreamButton" :duration="streamDuration" />
-    <div class="generate-confetti">
-      <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
-    </div>
-
     <div class="progress-bar">
       <el-progress
         v-if="generating"
@@ -226,6 +221,10 @@
         :percentage="generationStore.progress"
         :color="customColors"
       />
+    </div>
+    <StreamButton ref="audioPlayerRef" v-show="showStreamButton" :duration="streamDuration" />
+    <div class="generate-confetti">
+      <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
     </div>
     <DownloadList />
   </div>
@@ -247,12 +246,9 @@ import Notification from '@/assets/notification.mp3'
 import StreamButton from '@/components/StreamButton.vue'
 import {
   generateTTS,
-  getTask,
   getVoiceList,
-  createTask,
   type Voice,
   type GenerateResponse,
-  type ResponseWrapper,
   createTaskStream,
 } from '@/api/tts'
 
@@ -471,15 +467,11 @@ const previewAudio = async () => {
   previewLoading.value = true
   try {
     const params = buildParams(previewText)
-
     const { data } = await generateTTS(params)
     if (data?.audio) {
       updateConfig('previewAudioUrl', data?.audio)
     }
-
-    setTimeout(() => {
-      ;(audioPlayer?.value as HTMLAudioElement).play()
-    })
+    setTimeout(audioPlayer?.value!.play)
   } catch (error) {
     console.error('Preview failed:', error)
     commonErrorHandler(error)
@@ -493,7 +485,8 @@ const handleGenerate = () => {
   if (!inputText.trim() || !canGenerate.value) return
   if (inputText.length < 200) {
     console.warn('[handleGenerate]Input text is too short, generating directly...')
-    generateAudio()
+    // generateAudio()
+    generateAudioTask()
   } else {
     console.warn('[handleGenerate]Input text is long, creating task...')
     generateAudioTask()
@@ -553,10 +546,6 @@ const generateAudioTask = async () => {
     let processor: ReturnType<typeof createAudioStreamProcessor> | null = null
 
     const stream = await createTaskStream(params)
-    if ((stream as unknown as ResponseWrapper<GenerateResponse>).code) {
-      pooling((stream as unknown as ResponseWrapper<GenerateResponse>).data!.id)
-      return
-    }
     const onStart = () => {
       showStreamButton.value = true
     }
@@ -571,9 +560,12 @@ const generateAudioTask = async () => {
     const onFinished = () => {
       generating.value = false
       const result = {
-        audio: '',
-        file: '',
+        audio: audioPlayerRef.value!.audioRef!.src,
+        file: audioPlayerRef.value!.audioRef!.src,
         id: '',
+        // download: () => {
+        //   processor?.downloadAudio()
+        // },
       }
       streamDuration.value = audioPlayerRef.value!.audioRef!.duration
       generationStore.updateProgress(100)
@@ -582,7 +574,6 @@ const generateAudioTask = async () => {
     const onError = (msg: string) => {
       console.error(msg)
     }
-    console.log(`audioPlayerRef.audioRef:`, audioPlayerRef.value?.audioRef)
     processor = createAudioStreamProcessor(
       audioPlayerRef.value!.audioRef!,
       stream as unknown as ReadableStream,
@@ -592,8 +583,6 @@ const generateAudioTask = async () => {
       onError
     )
     audioPlayerRef.value!.audioRef!.src = processor.audioUrl
-    ;(globalThis as any).processor = processor
-    console.log('processor', processor.isActive())
   } catch (error) {
     console.error('生成失败:', error)
     commonErrorHandler(error)
@@ -724,6 +713,7 @@ onMounted(async () => {
 }
 .progress-bar {
   margin-top: 20px;
+  margin-bottom: 20px;
   height: 12px;
 }
 .progress-text {

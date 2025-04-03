@@ -92,7 +92,7 @@ export const createTask = async (data: TaskRequest) => {
 }
 export const createTaskStream = async (data: TaskRequest) => {
   const response = await api.post<ReadableStream | ResponseWrapper<GenerateResponse>>(
-    `/createStream`,
+    `/createStream?mock=true`,
     data,
     {
       responseType: 'stream',

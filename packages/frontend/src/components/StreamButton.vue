@@ -4,16 +4,20 @@
       你的浏览器不支持音频播放。
     </audio>
     <div class="controls">
-      <el-button :type="isPlaying ? 'warning' : 'primary'" circle @click="toggle">
+      <el-button circle @click="left10">
+        <el-icon><DArrowLeft /></el-icon>
+      </el-button>
+      <el-button :type="isPlaying ? 'warning' : 'primary'" circle size="large" @click="toggle">
         <el-icon v-if="!isPlaying"><VideoPlay /></el-icon>
         <el-icon v-else><VideoPause /></el-icon>
       </el-button>
-      <el-button type="danger" circle @click="stop">
-        <el-icon><RefreshLeft /></el-icon>
+      <el-button circle @click="right10">
+        <el-icon><DArrowRight /></el-icon>
       </el-button>
     </div>
     <div class="progress-container">
       <el-slider
+        size="small"
         v-model="progress"
         :max="100"
         :show-tooltip="false"
@@ -33,7 +37,7 @@ import { ref } from 'vue'
 import { debounce } from '@/utils'
 import { ElButton, ElSlider } from 'element-plus'
 import type { Arrayable } from 'element-plus/es/utils/index.mjs'
-import { VideoPlay, VideoPause, RefreshLeft } from '@element-plus/icons-vue'
+import { VideoPlay, VideoPause, RefreshLeft, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
 
 interface Prop {
   duration: number
@@ -52,7 +56,12 @@ const toggle = () => {
     play().then(() => (isPlaying.value = true))
   }
 }
-
+const left10 = () => {
+  audioRef.value!.currentTime = Math.max(audioRef.value!.currentTime - 10, 0)
+}
+const right10 = () => {
+  audioRef.value!.currentTime = Math.min(audioRef.value!.currentTime + 10, audioRef.value!.duration)
+}
 const play = async () => audioRef.value!.play()
 const pause = async () => audioRef.value!.pause()
 
@@ -121,6 +130,7 @@ defineExpose({
   display: flex;
   gap: 10px;
   margin-bottom: 15px;
+  align-items: center;
 }
 
 .el-button {

@@ -35,7 +35,7 @@ export async function createTaskStream(req: Request, res: Response, next: NextFu
   try {
     if (req.query?.mock) {
       logger.info('Mocking audio stream...')
-      streamWithLimit(res, path.join(__dirname, '../../mock/flying.mp3'), 12800) // Mock stream with limit
+      streamWithLimit(res, path.join(__dirname, '../../mock/flying.mp3'), 128000) // Mock stream with limit
       return
     }
     logger.debug('Generating audio with body:', req.body)
