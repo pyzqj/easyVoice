@@ -106,7 +106,7 @@ export const createTaskStream = async (data: TaskRequest) => {
   if (
     response.status !== 200 ||
     ttsType === 'application/json' ||
-    contentType.includes('application/json')
+    contentType?.includes?.('application/json')
   ) {
     const text = await new Response(response.data as any).text()
     const responseData = JSON.parse(text)

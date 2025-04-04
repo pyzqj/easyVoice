@@ -101,12 +101,6 @@ export function formatFileSize(bytes: number) {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
-interface StreamOptions {
-  headers?: Record<string, string> // 自定义响应头
-  onError?: (err: Error) => string // 自定义错误消息格式化函数
-  onEnd?: () => void // 流结束时的回调
-}
-
 /**
  * 将流式数据发送到客户端的通用函数
  * @param res Express 响应对象
@@ -121,31 +115,69 @@ export function streamToResponse(
   const { headers = {}, onError = (err) => `Error occurred: ${err.message}`, onEnd } = options
 
   const outputStream = new PassThrough()
+  let isClientDisconnected = false
 
   Object.entries(headers).forEach(([key, value]) => {
     res.setHeader(key, value)
   })
 
+  res.on('close', () => {
+    isClientDisconnected = true
+    logger.warn('Client disconnected')
+    // 销毁流（只对支持 destroy 的流调用）
+    if ('destroy' in inputStream) {
+      ;(inputStream as Readable).destroy()
+    }
+    outputStream.destroy()
+  })
+
+  // 输入流错误处理
   inputStream.on('error', (err: Error) => {
+    if (isClientDisconnected) return
     logger.error('Input stream error:', err)
     const errorMessage = onError(err)
     outputStream.write(errorMessage)
     outputStream.end()
   })
 
+  // 输出流错误处理
   outputStream.on('error', (err: Error) => {
+    if (isClientDisconnected) return
     logger.error('Output stream error:', err)
     res.status(500).end('Internal server error')
   })
 
+  // 流完成处理
   if (onEnd) {
     inputStream.on('end', () => {
-      console.log('Stream completed successfully')
+      if (isClientDisconnected) return
+      logger.info('Stream completed successfully')
       onEnd()
     })
   }
 
+  inputStream.on('uncaughtException' as any, (err: Error) => {
+    logger.error('Uncaught exception in input stream:', err)
+    if (!isClientDisconnected) {
+      res.status(500).end('Internal server error')
+    }
+  })
+
+  // 检查响应是否已可写
+  if (!res.writable) {
+    if ('destroy' in inputStream) {
+      ;(inputStream as Readable).destroy()
+    }
+    outputStream.destroy()
+    return
+  }
   inputStream.pipe(outputStream).pipe(res)
+}
+
+interface StreamOptions {
+  headers?: Record<string, string>
+  onError?: (err: Error) => string
+  onEnd?: () => void
 }
 export function streamWithLimit(res: Response, filePath: string, bitrate = 128) {
   const byteRate = (bitrate * 1024) / 8 // kbps to bytes per second
