@@ -1,5 +1,5 @@
 import path from 'path'
-import fs from 'fs/promises'
+import fs, { readdir } from 'fs/promises'
 import ffmpeg from 'fluent-ffmpeg'
 import { AUDIO_DIR, STATIC_DOMAIN, EDGE_API_LIMIT } from '../config'
 import { logger } from '../utils/logger'
@@ -14,7 +14,7 @@ import {
 } from '../utils'
 import { openai } from '../utils/openai'
 import { splitText } from './text.service'
-import { generateSingleVoice, generateSingleVoiceStream, generateSrt } from './edge-tts.service'
+import { generateSingleVoiceStream, generateSrt } from './edge-tts.service'
 import { EdgeSchema } from '../schema/generate'
 import { MapLimitController } from '../controllers/concurrency.controller'
 import audioCacheInstance from './audioCache.service'
@@ -172,8 +172,10 @@ async function generateWithoutLLMStream(params: TTSParams, task: Task) {
  */
 async function buildSegment(params: TTSParams, task: Task, dir: string = '') {
   const { segment } = task.context as Required<NonNullable<Task['context']>>
+  const output = path.resolve(AUDIO_DIR, dir, segment.id)
   const stream = (await generateSingleVoiceStream({
     ...params,
+    output,
     outputType: 'stream',
   })) as Readable
   const { res } = task.context as Required<NonNullable<Task['context']>>
@@ -184,6 +186,7 @@ async function buildSegment(params: TTSParams, task: Task, dir: string = '') {
       'x-generate-tts-type': 'stream',
       'Access-Control-Expose-Headers-generate-tts-id': task.id,
     },
+    fileName: `${segment.id}.mp3`,
     onError: (err) => `Custom error: ${err.message}`,
     onEnd: () => {
       task?.endTask?.(task.id)
@@ -200,12 +203,24 @@ interface SegmentError extends Error {
   segmentIndex: number
   attempt: number
 }
+async function handleSrt(audioPath: string) {
+  const { dir, base } = path.parse(audioPath)
+  const tmpDir = audioPath + '_tmp'
+  await ensureDir(tmpDir)
 
+  const fileList = (await readdir(tmpDir))
+    .filter((file) => file.includes(base) && file.includes('.json'))
+    .sort((a, b) => Number(a.split('.json')?.[1] || 0) - Number(b.split('.json')?.[1] || 0))
+    .map((file) => path.join(tmpDir, file))
+  if (!fileList.length) return
+  concatDirSrt({ jsonFiles: fileList, inputDir: tmpDir, outputFile: audioPath })
+}
 async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<void> {
-  const { res } = task.context as Required<NonNullable<Task['context']>>
+  const { res, segment } = task.context as Required<NonNullable<Task['context']>>
+  const { id: outputId } = segment
   const totalSegments = segments.length
+  const output = path.resolve(AUDIO_DIR, outputId)
   let completedSegments = 0
-
   if (!totalSegments) {
     return void res.status(400).end('No segments provided')
   }
@@ -220,9 +235,13 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
       'Access-Control-Expose-Headers-generate-tts-id': task.id,
     },
     onError: (err) => `Custom error: ${err.message}`,
+    fileName: segment.id,
     onEnd: () => {
       task?.endTask?.(task.id)
       logger.info(`Streaming ${task.id} finished`)
+      setTimeout(() => {
+        handleSrt(output)
+      }, 200)
     },
     onClose: () => {
       task?.endTask?.(task.id)
@@ -240,7 +259,11 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
     const segment = segments[index]
     const generateWithRetry = async (attempt = 0): Promise<Readable> => {
       try {
-        return (await generateSingleVoiceStream({ ...segment, outputType: 'stream' })) as Readable
+        return (await generateSingleVoiceStream({
+          ...segment,
+          outputType: 'stream',
+          output,
+        })) as Readable
       } catch (err) {
         const error = err as Error
         if (attempt + 1 >= maxRetries) {
@@ -379,15 +402,18 @@ export async function concatDirSrt({
   fileList,
   outputFile,
   inputDir,
+  jsonFiles,
 }: ConcatAudioParams): Promise<void> {
-  const jsonFiles = sortAudioDir(
-    fileList.map((file) => `${file}.json`),
-    '.json'
-  )
-  if (!jsonFiles.length) throw new Error('No JSON files found for subtitles')
+  const _jsonFiles =
+    jsonFiles ||
+    sortAudioDir(
+      fileList!.map((file) => `${file}.json`),
+      '.json'
+    )
+  if (!_jsonFiles.length) throw new Error('No JSON files found for subtitles')
 
   const subtitleFiles: SubtitleFiles = await Promise.all(
-    jsonFiles.map((file) => readJson<SubtitleFile>(file))
+    _jsonFiles.map((file) => readJson<SubtitleFile>(file))
   )
   const mergedJson = mergeSubtitleFiles(subtitleFiles)
   const tempJsonPath = path.resolve(inputDir, 'all_splits.mp3.json')
@@ -407,7 +433,8 @@ function sortAudioDir(fileList: string[], ext: string = '.mp3'): string[] {
 }
 
 export interface ConcatAudioParams {
-  fileList: string[]
+  fileList?: string[]
   outputFile: string
   inputDir: string
+  jsonFiles?: string[]
 }

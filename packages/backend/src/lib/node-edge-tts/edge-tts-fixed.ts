@@ -1,9 +1,12 @@
 import { randomBytes } from 'node:crypto'
-import { writeFileSync, createWriteStream, WriteStream } from 'node:fs'
+import { createWriteStream, WriteStream } from 'node:fs'
 import { WebSocket } from 'ws'
+import { parse, resolve } from 'path'
+import { access, writeFile } from 'node:fs/promises'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { generateSecMsGecToken, TRUSTED_CLIENT_TOKEN, CHROMIUM_FULL_VERSION } from './drm'
 import { Readable } from 'node:stream'
+import { ensureDir } from '../../utils'
 
 interface SubLine {
   part: string
@@ -21,6 +24,8 @@ type configure = {
   voice?: string
   lang?: string
   outputFormat?: string
+  wordBoundary?: boolean
+  sentenceBoundary?: boolean
   saveSubtitles?: boolean
   proxy?: string
   rate?: string
@@ -33,6 +38,8 @@ class EdgeTTS {
   private voice: string
   private lang: string
   private outputFormat: string
+  private wordBoundary: boolean
+  private sentenceBoundary: boolean
   private saveSubtitles: boolean
   private proxy: string
   private rate: string
@@ -44,6 +51,8 @@ class EdgeTTS {
     voice = 'zh-CN-XiaoyiNeural',
     lang = 'zh-CN',
     outputFormat = 'audio-24khz-48kbitrate-mono-mp3',
+    wordBoundary = true,
+    sentenceBoundary = false,
     saveSubtitles = false,
     proxy,
     rate = 'default',
@@ -55,6 +64,8 @@ class EdgeTTS {
     this.lang = lang
     this.outputFormat = outputFormat
     this.saveSubtitles = saveSubtitles
+    this.wordBoundary = wordBoundary
+    this.sentenceBoundary = sentenceBoundary
     this.proxy = proxy ?? ''
     this.rate = rate
     this.pitch = pitch
@@ -91,8 +102,8 @@ class EdgeTTS {
               "synthesis": {
                 "audio": {
                   "metadataoptions": {
-                    "sentenceBoundaryEnabled": "false",
-                    "wordBoundaryEnabled": "true"
+                    "sentenceBoundaryEnabled": "${this.sentenceBoundary}",
+                    "wordBoundaryEnabled": "${this.wordBoundary}"
                   },
                   "outputFormat": "${this.outputFormat}"
                 }
@@ -118,9 +129,33 @@ class EdgeTTS {
       })
     })
   }
+  async getSrtPath(audioPath: string): Promise<string> {
+    let basePath = audioPath + '.srt.json'
+    let subPath = basePath
+    let counter = 1
 
-  _saveSubFile(subFile: SubLine[], text: string, audioPath: string) {
-    let subPath = audioPath + '.json'
+    try {
+      await access(subPath)
+      while (true) {
+        subPath = `${basePath}.${counter}`
+        try {
+          await access(subPath)
+          counter++
+        } catch (error) {
+          return subPath
+        }
+      }
+    } catch (error) {
+      return subPath
+    }
+  }
+  async _saveSubFile(subFile: SubLine[], text: string, audioPath: string) {
+    const tmpDir = audioPath + '_tmp'
+    await ensureDir(tmpDir)
+    const { base } = parse(audioPath)
+    audioPath = resolve(tmpDir, base)
+    let subPath = await this.getSrtPath(audioPath)
+
     let subChars = text.split('')
     let subCharIndex = 0
     subFile.forEach((cue: SubLine, index: number) => {
@@ -139,7 +174,8 @@ class EdgeTTS {
       }
       cue.part = fullPart
     })
-    writeFileSync(subPath, JSON.stringify(subFile, null, '  '), { encoding: 'utf-8' })
+    console.log('save subtitles to file: ', subPath)
+    await writeFile(subPath, JSON.stringify(subFile, null, '  '), { encoding: 'utf-8' })
   }
 
   async ttsPromise(text: string, options: TtsOptions = {}): Promise<Readable | Buffer | void> {
@@ -220,17 +256,17 @@ class EdgeTTS {
       } else {
         const message = data.toString()
         if (message.includes('Path:turn.end')) {
+          if (saveSubtitles) this._saveSubFile(subFile, text, audioPath!)
           if (outputType === 'file') {
             audioStream!.end()
-            if (saveSubtitles) this._saveSubFile(subFile, text, audioPath!)
             _wsConnect.close()
             resolveFile()
           } else if (outputType === 'stream' && !isStreamDestroyed) {
-            readableStream!.push(null) // 结束流
+            readableStream!.push(null)
+            console.log(`close edge-tts readableStream...`)
             _wsConnect.close()
           } else if (outputType === 'buffer') {
             const audioBuffer = Buffer.concat(audioChunks)
-            if (saveSubtitles) this._saveSubFile(subFile, text, audioPath || 'temp')
             _wsConnect.close()
             resolveBuffer?.(audioBuffer) // 直接调用 resolve
           }

@@ -1,9 +1,10 @@
 import fs from 'fs/promises'
-import { createReadStream } from 'fs'
+import { createReadStream, createWriteStream } from 'fs'
 import { resolve } from 'path'
 import { Response } from 'express'
 import { PassThrough, Readable, Stream } from 'stream'
 import { logger } from './logger'
+import { AUDIO_DIR } from '../config'
 
 export async function getLangConfig(text: string) {
   const { franc } = await import('franc')
@@ -117,6 +118,7 @@ export function streamToResponse(
     onError = (err) => `Error occurred: ${err.message}`,
     onEnd,
     onClose,
+    fileName,
   } = options
 
   const outputStream = new PassThrough()
@@ -185,6 +187,12 @@ export function streamToResponse(
     return
   }
   inputStream.pipe(outputStream).pipe(res)
+
+  if (fileName) {
+    const streamFile = resolve(AUDIO_DIR, fileName)
+    const localStream = createWriteStream(streamFile)
+    inputStream.pipe(outputStream).pipe(localStream)
+  }
 }
 
 interface StreamOptions {
@@ -192,6 +200,7 @@ interface StreamOptions {
   onError?: (err: Error) => string
   onEnd?: () => void
   onClose?: () => void
+  fileName?: string
 }
 export function streamWithLimit(res: Response, filePath: string, bitrate = 128) {
   const byteRate = (bitrate * 1024) / 8 // kbps to bytes per second
