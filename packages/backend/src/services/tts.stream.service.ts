@@ -1,4 +1,4 @@
-import path from 'path'
+import path, { resolve } from 'path'
 import { Response } from 'express'
 import fs, { readdir } from 'fs/promises'
 import ffmpeg from 'fluent-ffmpeg'
@@ -22,6 +22,7 @@ import audioCacheInstance from './audioCache.service'
 import { mergeSubtitleFiles, SubtitleFile, SubtitleFiles } from '../utils/subtitle'
 import taskManager, { Task } from '../utils/taskManager'
 import { Readable, PassThrough } from 'stream'
+import { createWriteStream } from 'fs'
 
 // 错误消息枚举
 enum ErrorMessages {
@@ -102,13 +103,16 @@ async function generateWithLLMStream(task: Task) {
     }
     buildSegmentList(formatLlmSegments(llmSegments), task)
   } else {
-    logger.info('Splitting text into multiple segments:', segments.length)
-    let finalSegments = []
+    const output = resolve(AUDIO_DIR, id)
     let count = 0
+    logger.info('Splitting text into multiple segments:', segments.length)
     const getProgress = () => {
       return Number(((count / segments.length) * 100).toFixed(2))
     }
-    const outputStream = new PassThrough().pipe(res)
+    const localStream = createWriteStream(output)
+    const outputStream = new PassThrough()
+    outputStream.pipe(res)
+    outputStream.pipe(localStream)
 
     for (let seg of segments) {
       count++
@@ -124,13 +128,20 @@ async function generateWithLLMStream(task: Task) {
       for (let segment of formatLlmSegments(llmSegments)) {
         const stream = (await generateSingleVoiceStream({
           ...segment,
+          output,
           outputType: 'stream',
         })) as Readable
         stream.pipe(outputStream, { end: false })
+        await new Promise((resolve) => {
+          stream.on('end', resolve)
+        })
       }
       logger.info(`Progress: ${getProgress()}%`)
     }
     outputStream.end()
+    setTimeout(() => {
+      handleSrt(output)
+    }, 200)
   }
 }
 const buildFinal = async (finalSegments: TTSResult[], id: string) => {
