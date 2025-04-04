@@ -72,13 +72,13 @@ export const validateLLM = (req: Request, res: Response, next: NextFunction) => 
   }
   // read from env if not provided in request body
   const { OPENAI_BASE_URL, OPENAI_API_KEY, MODEL_NAME } = process.env
-  if (!req.body?.openaiBaseUrl) {
+  if (!req.body?.openaiBaseUrl && OPENAI_BASE_URL) {
     req.body.openaiBaseUrl = OPENAI_BASE_URL
   }
-  if (!req.body?.openaiKey) {
+  if (!req.body?.openaiKey && OPENAI_API_KEY) {
     req.body.openaiKey = OPENAI_API_KEY
   }
-  if (!req.body?.openaiModel) {
+  if (!req.body?.openaiModel && MODEL_NAME) {
     req.body.openaiModel = MODEL_NAME
   }
   commonValidate(req, res, next, llmSchema)
