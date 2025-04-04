@@ -31,13 +31,15 @@ export function errorHandler(err: Error, req: Request, res: Response, next: Next
     },
   })
   const code = getCode(err.message)
-  res.status(500).json({
+  res.status(code).json({
     success: false,
     message: err.message,
     ...(process.env.NODE_ENV === 'development' ? { stack: err.stack } : {}),
   })
 }
 function getCode(message: string): number {
+  console.log(`message, ErrorMessages.ENG_MODEL_INVALID_TEXT`)
+  console.log(message, ErrorMessages.ENG_MODEL_INVALID_TEXT)
   if (message.includes(ErrorMessages.ENG_MODEL_INVALID_TEXT)) return 400
   return 500
 }

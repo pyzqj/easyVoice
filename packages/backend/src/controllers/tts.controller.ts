@@ -96,27 +96,18 @@ export async function getTaskStats(_req: Request, res: Response, next: NextFunct
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
     logger.debug('Generating audio with body:', req.body)
-    try {
-      const formattedBody = formatBody(req.body)
-      let result = await generateTTS(formattedBody)
-      const responseResult = {
-        success: true,
-        data: {
-          ...result,
-          file: path.parse(result.audio).base,
-          srt: path.parse(result.srt).base,
-        },
-        code: 200,
-      }
-      res.json(responseResult)
-    } catch (err) {
-      const responseResult = {
-        success: false,
-        message: (err as Error).message,
-        code: 500,
-      }
-      res.status(500).json(responseResult)
+    const formattedBody = formatBody(req.body)
+    let result = await generateTTS(formattedBody)
+    const responseResult = {
+      success: true,
+      data: {
+        ...result,
+        file: path.parse(result.audio).base,
+        srt: path.parse(result.srt).base,
+      },
+      code: 200,
     }
+    res.json(responseResult)
   } catch (error) {
     next(error)
   }

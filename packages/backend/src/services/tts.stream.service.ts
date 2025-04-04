@@ -332,7 +332,7 @@ function validateLangAndVoice(lang: string, voice: string, res: Response): boole
     res.status(400).send({
       code: 400,
       success: false,
-      msg: ErrorMessages.ENG_MODEL_INVALID_TEXT,
+      message: ErrorMessages.ENG_MODEL_INVALID_TEXT,
     })
     return false
   }

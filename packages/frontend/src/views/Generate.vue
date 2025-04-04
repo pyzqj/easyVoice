@@ -395,9 +395,19 @@ watch(
     }
   }
 )
-const commonErrorHandler = (error: unknown) => {
+const handleStreamError = async (error: AxiosError) => {
+  if (
+    error?.response?.headers['content-type']?.includes('application/json') &&
+    error?.response?.data instanceof ReadableStream
+  ) {
+    const responseData = JSON.parse(await new Response(error.response.data as any).text())
+    error.response.data = responseData
+  }
+}
+const commonErrorHandler = async (error: unknown) => {
   if (error instanceof AxiosError) {
     const status = error.status
+    await handleStreamError(error)
     switch (status) {
       case 400:
         return handle400(error)

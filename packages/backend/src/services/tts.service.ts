@@ -41,7 +41,7 @@ export async function generateTTS(params: Required<EdgeSchema>, task?: Task): Pr
 
   const segment: Segment = { id: generateId(useLLM ? 'aigen-' : voice, text), text }
   const { lang, voiceList } = await getLangConfig(segment.text)
-  logger.debug(`Language detected lang and voice list: `, [lang, voiceList])
+  logger.debug(`Language detected lang: `, lang)
   validateLangAndVoice(lang, voice)
 
   let result: TTSResult
