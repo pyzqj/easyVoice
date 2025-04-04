@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { memoryUsage } from 'process'
 import { Request, Response, NextFunction } from 'express'
 import { formatFileSize } from '.'
+import { logger } from './logger'
 
 interface Options {
   prefix?: string
@@ -93,7 +94,7 @@ class TaskManager {
     task.progress = 100
     task.updatedAt = new Date()
     this.tasks.set(taskId, task)
-    console.log(`Task ${taskId} completed`)
+    logger.info(`Task ${taskId} completed`)
     return task
   }
   isTaskPending(taskId: string) {

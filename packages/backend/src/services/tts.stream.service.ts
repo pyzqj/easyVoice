@@ -220,13 +220,13 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
       'Access-Control-Expose-Headers-generate-tts-id': task.id,
     },
     onError: (err) => `Custom error: ${err.message}`,
-    onClose: () => {
-      task?.endTask?.(task.id)
-      logger.info(`Streaming ${task.id} closed`)
-    },
     onEnd: () => {
       task?.endTask?.(task.id)
       logger.info(`Streaming ${task.id} finished`)
+    },
+    onClose: () => {
+      task?.endTask?.(task.id)
+      logger.info(`Streaming ${task.id} closed`)
     },
   })
 
