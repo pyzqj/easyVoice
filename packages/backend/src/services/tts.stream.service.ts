@@ -1,4 +1,5 @@
 import path from 'path'
+import { Response } from 'express'
 import fs, { readdir } from 'fs/promises'
 import ffmpeg from 'fluent-ffmpeg'
 import { AUDIO_DIR, STATIC_DOMAIN, EDGE_API_LIMIT } from '../config'
@@ -38,6 +39,18 @@ enum ErrorMessages {
  */
 export async function generateTTSStream(params: Required<EdgeSchema>, task: Task) {
   const { text, pitch, voice, rate, volume, useLLM } = params
+  const segment: Segment = { id: generateId(useLLM ? 'aigen-' : voice, text), text }
+  const { lang, voiceList } = await getLangConfig(segment.text)
+  logger.debug(`Language detected lang: `, lang)
+  task!.context!.segment = segment
+  task!.context!.lang = lang
+  task!.context!.voiceList = voiceList
+  const { res } = task.context as Required<NonNullable<Task['context']>>
+  if (!validateLangAndVoice(lang, voice, res)) {
+    task?.endTask?.(task.id)
+    return
+  }
+
   // 检查缓存, 如果有缓存则直接返回
   const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
   const cache = await audioCacheInstance.getAudio(cacheKey)
@@ -55,14 +68,6 @@ export async function generateTTSStream(params: Required<EdgeSchema>, task: Task
     task.endTask?.(task.id)
     return
   }
-
-  const segment: Segment = { id: generateId(useLLM ? 'aigen-' : voice, text), text }
-  const { lang, voiceList } = await getLangConfig(segment.text)
-  logger.debug(`Language detected lang: `, lang)
-  task!.context!.segment = segment
-  task!.context!.lang = lang
-  task!.context!.voiceList = voiceList
-  validateLangAndVoice(lang, voice)
 
   if (useLLM) {
     generateWithLLMStream(task)
@@ -322,10 +327,16 @@ async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number):
 /**
  * 验证语言和语音参数
  */
-function validateLangAndVoice(lang: string, voice: string): void {
+function validateLangAndVoice(lang: string, voice: string, res: Response): boolean {
   if (lang !== 'eng' && voice.startsWith('en')) {
-    throw new Error(ErrorMessages.ENG_MODEL_INVALID_TEXT)
+    res.status(400).send({
+      code: 400,
+      success: false,
+      msg: ErrorMessages.ENG_MODEL_INVALID_TEXT,
+    })
+    return false
   }
+  return true
 }
 
 /**

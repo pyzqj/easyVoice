@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { logger } from '../utils/logger'
+import { ErrorMessages } from '../services/tts.service'
 
 export function errorHandler(err: Error, req: Request, res: Response, next: NextFunction) {
   const errorDetails = {
@@ -29,10 +30,14 @@ export function errorHandler(err: Error, req: Request, res: Response, next: Next
       },
     },
   })
-
+  const code = getCode(err.message)
   res.status(500).json({
     success: false,
     message: err.message,
     ...(process.env.NODE_ENV === 'development' ? { stack: err.stack } : {}),
   })
+}
+function getCode(message: string): number {
+  if (message.includes(ErrorMessages.ENG_MODEL_INVALID_TEXT)) return 400
+  return 500
 }

@@ -16,7 +16,7 @@ import taskManager, { Task } from '../utils/taskManager'
 import { handleSrt } from './tts.stream.service'
 
 // 错误消息枚举
-enum ErrorMessages {
+export enum ErrorMessages {
   ENG_MODEL_INVALID_TEXT = 'English model cannot process non-English text',
   API_FETCH_FAILED = 'Failed to fetch TTS parameters from API',
   INVALID_API_RESPONSE = 'Invalid API response: no TTS parameters returned',
