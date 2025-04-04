@@ -147,20 +147,6 @@ export function createAudioStreamProcessor(
       await startReadingStream()
     }
   })
-  async function loadAroundSeek(seekTime: number) {
-    if (sourceBuffer?.buffered.length) {
-      const bufferStart = sourceBuffer?.buffered?.start(0)
-      const bufferEnd = sourceBuffer?.buffered?.end(sourceBuffer.buffered?.length - 1)
-      console.log('当前缓存范围:', bufferStart, bufferEnd)
-      console.log('用户跳转到的时间点:', seekTime)
-      if (bufferStart !== undefined && bufferEnd) {
-        if (seekTime > bufferStart && seekTime < bufferEnd) {
-          return
-        }
-      }
-      //TODO:
-    }
-  }
   // 读取流并追加数据
   async function startReadingStream() {
     reader = stream.getReader()

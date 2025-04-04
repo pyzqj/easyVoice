@@ -527,8 +527,8 @@ const handleGenerate = () => {
   if (!inputText.trim() || !canGenerate.value) return
   if (inputText.length < 200) {
     console.warn('[handleGenerate]Input text is too short, generating directly...')
-    // generateAudio()
-    generateAudioTask()
+    generateAudio()
+    // generateAudioTask()
   } else {
     console.warn('[handleGenerate]Input text is long, creating task...')
     generateAudioTask()
