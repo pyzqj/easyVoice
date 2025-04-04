@@ -149,12 +149,15 @@ class EdgeTTS {
       return subPath
     }
   }
-  async _saveSubFile(subFile: SubLine[], text: string, audioPath: string) {
-    const tmpDir = audioPath + '_tmp'
-    await ensureDir(tmpDir)
-    const { base } = parse(audioPath)
-    audioPath = resolve(tmpDir, base)
-    let subPath = await this.getSrtPath(audioPath)
+  async _saveSubFile(subFile: SubLine[], text: string, audioPath: string, outputType?: string) {
+    let subPath = audioPath + '.json'
+    if (outputType === 'stream') {
+      const tmpDir = audioPath + '_tmp'
+      await ensureDir(tmpDir)
+      const { base } = parse(audioPath)
+      audioPath = resolve(tmpDir, base)
+      subPath = await this.getSrtPath(audioPath)
+    }
 
     let subChars = text.split('')
     let subCharIndex = 0
@@ -256,7 +259,7 @@ class EdgeTTS {
       } else {
         const message = data.toString()
         if (message.includes('Path:turn.end')) {
-          if (saveSubtitles) this._saveSubFile(subFile, text, audioPath!)
+          if (saveSubtitles) this._saveSubFile(subFile, text, audioPath!, outputType)
           if (outputType === 'file') {
             audioStream!.end()
             _wsConnect.close()

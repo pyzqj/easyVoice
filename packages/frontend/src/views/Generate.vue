@@ -367,11 +367,11 @@ const canGenerate = computed(() => {
 })
 
 const canPreview = computed(() => {
-  const { voiceMode, openaiBaseUrl, openaiKey, openaiModel, selectedVoice } = audioConfig
+  const { voiceMode, selectedVoice } = audioConfig
   if (voiceMode === 'preset') {
     return !!selectedVoice
   } else {
-    return !!openaiBaseUrl && !!openaiKey && !!openaiModel
+    return true
   }
 })
 
@@ -539,8 +539,7 @@ const handleGenerate = () => {
   if (!inputText.trim() || !canGenerate.value) return
   if (inputText.length < 200) {
     console.warn('[handleGenerate]Input text is too short, generating directly...')
-    generateAudio()
-    // generateAudioTask()
+    generateAudio() // for test
   } else {
     console.warn('[handleGenerate]Input text is long, creating task...')
     generateAudioTask()

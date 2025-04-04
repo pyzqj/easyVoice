@@ -39,7 +39,7 @@ export async function generateTTS(params: Required<EdgeSchema>, task?: Task): Pr
     return cache
   }
 
-  const segment: Segment = { id: generateId(useLLM ? 'aigen-' : voice, text), text }
+  const segment: Segment = { id: generateId(`${useLLM ? 'aigen-' : ''}${voice}`, text), text }
   const { lang, voiceList } = await getLangConfig(segment.text)
   logger.debug(`Language detected lang: `, lang)
   validateLangAndVoice(lang, voice)
@@ -93,10 +93,11 @@ async function generateWithLLM(
       }))
   if (length <= 1) {
     const prompt = getPrompt(lang, voiceList, segments[0])
-    logger.debug(`Prompt for LLM: ${prompt}`)
+    // logger.debug(`Prompt for LLM: ${prompt}`)
     const llmResponse = await fetchLLMSegment(prompt)
     let llmSegments = llmResponse?.result || llmResponse?.segments || []
     if (!Array.isArray(llmSegments)) {
+      task?.endTask?.(task.id)
       throw new Error(
         'LLM response is not an array, please switch to Edge TTS mode or use another model'
       )
@@ -114,7 +115,7 @@ async function generateWithLLM(
     for (let seg of segments) {
       count++
       const prompt = getPrompt(lang, voiceList, seg)
-      logger.debug(`Prompt for LLM: ${prompt}`)
+      // logger.debug(`Prompt for LLM: ${prompt}`)
       const llmResponse = await fetchLLMSegment(prompt)
       let llmSegments = llmResponse?.result || llmResponse?.segments || []
       if (!Array.isArray(llmSegments)) {
@@ -199,7 +200,7 @@ async function buildSegment(
   })
   logger.info('Generated single segment:', result)
   setTimeout(() => {
-    handleSrt(output)
+    handleSrt(output, false)
   }, 200)
   return {
     audio: `${STATIC_DOMAIN}/${path.join(dir, id)}`,
@@ -214,7 +215,6 @@ async function buildSegmentList(
   segment: Segment,
   segments: BuildSegment[],
   task?: Task,
-  totalSegments?: number
 ): Promise<TTSResult> {
   const fileList: string[] = []
   const length = segments.length

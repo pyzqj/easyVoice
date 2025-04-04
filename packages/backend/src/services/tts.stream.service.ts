@@ -211,7 +211,12 @@ interface SegmentError extends Error {
   segmentIndex: number
   attempt: number
 }
-export async function handleSrt(audioPath: string) {
+export async function handleSrt(audioPath: string, stream = true) {
+  if (!stream) {
+    const tempJsonPath = audioPath + '.json'
+    await generateSrt(tempJsonPath, audioPath.replace('.mp3', '.srt'))
+    return
+  }
   const { dir, base } = path.parse(audioPath)
   const tmpDir = audioPath + '_tmp'
   await ensureDir(tmpDir)
