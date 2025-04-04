@@ -39,5 +39,5 @@ export const useGenerationStore = defineStore(
     }
     return { audio, file, progress, setFile, setAudio, updateProgress, audioList, updateAudioList }
   },
-  { persist: true }
+  { persist: false }
 )

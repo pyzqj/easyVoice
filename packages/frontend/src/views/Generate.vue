@@ -238,7 +238,7 @@
 <script setup lang="ts">
 import { AxiosError } from 'axios'
 import { Sparkles } from 'lucide-vue-next'
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeMount, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ConfettiExplosion from 'vue-confetti-explosion'
 import { useGenerationStore } from '@/stores/generation'
@@ -652,6 +652,37 @@ const generateAudioTask = async () => {
     generating.value = false
   }
 }
+const beforeUnloadHandler = async (event: BeforeUnloadEvent) => {
+  console.log(`beforeUnloadHandler:`, event.target)
+  if (generationStore.audioList.length > 0) {
+    // 同步阻止关闭，显示浏览器默认提示
+    event.preventDefault()
+    event.returnValue = '操作将删除页面上的所有音频文件，请确认已经下载！'
+    return event.returnValue
+  }
+
+  if (generationStore.audioList.length > 0) {
+    try {
+      await ElMessageBox.confirm('操作将删除页面上的所有音频文件，请确认已经下载！', '操作提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      })
+    } catch (error) {
+      console.log(`取消关闭页面`)
+      event.preventDefault()
+      event.returnValue = ''
+    }
+  }
+}
+
+// 组件挂载时添加事件监听
+onBeforeMount(() => {
+  window.addEventListener('beforeunload', beforeUnloadHandler)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', beforeUnloadHandler)
+})
 onMounted(async () => {
   successAudio.value = new Audio(Notification)
   try {

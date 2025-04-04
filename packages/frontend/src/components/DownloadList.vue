@@ -3,6 +3,16 @@
     <!-- 下载列表标题 -->
     <div class="download-header">
       <span class="header-title">下载列表 ({{ store.audioList.length }})</span>
+      <span class="header-title-tips">
+        <el-tooltip
+          class="box-item"
+          effect="dark"
+          content="刷新页面将删除所有音频，请确保已下载所有需要的音频文件。"
+          placement="top"
+        >
+          <el-icon><WarningFilled /></el-icon>
+        </el-tooltip>
+      </span>
     </div>
 
     <!-- 下载列表容器 -->
@@ -94,6 +104,7 @@ import {
   VideoPlay,
   ChatLineSquare,
   Service,
+  WarningFilled,
 } from '@element-plus/icons-vue'
 import { useAudio } from '@/utils/index'
 import type { Audio } from '../stores/generation'
@@ -225,6 +236,7 @@ const clearAll = () => {
 .download-header {
   padding-bottom: 12px;
   border-bottom: 1px solid #f0f0f0;
+  position: relative;
 }
 
 .header-title {
@@ -232,7 +244,11 @@ const clearAll = () => {
   font-weight: 500;
   color: #303133;
 }
-
+.header-title-tips {
+  position: absolute;
+  top: 0px;
+  right: 20px;
+}
 .download-list {
   max-height: 320px;
   margin: 12px 0;
