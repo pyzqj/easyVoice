@@ -112,7 +112,12 @@ export function streamToResponse(
   inputStream: Readable | Stream,
   options: StreamOptions = {}
 ): void {
-  const { headers = {}, onError = (err) => `Error occurred: ${err.message}`, onEnd } = options
+  const {
+    headers = {},
+    onError = (err) => `Error occurred: ${err.message}`,
+    onEnd,
+    onClose,
+  } = options
 
   const outputStream = new PassThrough()
   let isClientDisconnected = false
@@ -121,14 +126,22 @@ export function streamToResponse(
     res.setHeader(key, value)
   })
 
-  res.on('close', () => {
-    isClientDisconnected = true
-    logger.warn('Client disconnected')
-    // 销毁流（只对支持 destroy 的流调用）
-    if ('destroy' in inputStream) {
-      ;(inputStream as Readable).destroy()
+  const handleDisconnect = () => {
+    if (!isClientDisconnected) {
+      isClientDisconnected = true
+      logger.info('Client disconnected')
+      // 清理流
+      if ('destroy' in inputStream) {
+        ;(inputStream as Readable).destroy()
+      }
+      outputStream.destroy()
+      if (onClose) onClose()
     }
-    outputStream.destroy()
+  }
+
+  res.on('close', handleDisconnect)
+  res.on('finish', () => {
+    logger.info('Response finished')
   })
 
   // 输入流错误处理
@@ -178,6 +191,7 @@ interface StreamOptions {
   headers?: Record<string, string>
   onError?: (err: Error) => string
   onEnd?: () => void
+  onClose?: () => void
 }
 export function streamWithLimit(res: Response, filePath: string, bitrate = 128) {
   const byteRate = (bitrate * 1024) / 8 // kbps to bytes per second
