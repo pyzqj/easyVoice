@@ -186,11 +186,14 @@ async function buildSegment(params: TTSParams, task: Task, dir: string = '') {
       'x-generate-tts-type': 'stream',
       'Access-Control-Expose-Headers-generate-tts-id': task.id,
     },
-    fileName: `${segment.id}.mp3`,
+    fileName: segment.id,
     onError: (err) => `Custom error: ${err.message}`,
     onEnd: () => {
       task?.endTask?.(task.id)
       logger.info(`Streaming ${task.id} finished`)
+      setTimeout(() => {
+        handleSrt(output)
+      }, 200)
     },
   })
 }
@@ -203,14 +206,14 @@ interface SegmentError extends Error {
   segmentIndex: number
   attempt: number
 }
-async function handleSrt(audioPath: string) {
+export async function handleSrt(audioPath: string) {
   const { dir, base } = path.parse(audioPath)
   const tmpDir = audioPath + '_tmp'
   await ensureDir(tmpDir)
 
   const fileList = (await readdir(tmpDir))
     .filter((file) => file.includes(base) && file.includes('.json'))
-    .sort((a, b) => Number(a.split('.json')?.[1] || 0) - Number(b.split('.json')?.[1] || 0))
+    .sort((a, b) => Number(a.split('.json.')?.[1] || 0) - Number(b.split('.json.')?.[1] || 0))
     .map((file) => path.join(tmpDir, file))
   if (!fileList.length) return
   concatDirSrt({ jsonFiles: fileList, inputDir: tmpDir, outputFile: audioPath })
@@ -376,7 +379,7 @@ export async function concatDirAudio({
   outputFile,
   inputDir,
 }: ConcatAudioParams): Promise<void> {
-  const mp3Files = sortAudioDir(fileList, '.mp3')
+  const mp3Files = sortAudioDir(fileList!, '.mp3')
   if (!mp3Files.length) throw new Error('No MP3 files found in input directory')
 
   const tempListPath = path.resolve(inputDir, 'file_list.txt')

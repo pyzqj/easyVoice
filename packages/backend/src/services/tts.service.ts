@@ -13,6 +13,7 @@ import { MapLimitController } from '../controllers/concurrency.controller'
 import audioCacheInstance from './audioCache.service'
 import { mergeSubtitleFiles, SubtitleFile, SubtitleFiles } from '../utils/subtitle'
 import taskManager, { Task } from '../utils/taskManager'
+import { handleSrt } from './tts.stream.service'
 
 // 错误消息枚举
 enum ErrorMessages {
@@ -196,11 +197,10 @@ async function buildSegment(
     volume,
     output,
   })
-  logger.debug('Generated single segment:', result)
-  const jsonPath = `${output}.json`
-  const srtPath = output.replace('.mp3', '.srt')
-  await generateSrt(jsonPath, srtPath)
-  logger.debug('Generated SRT file:', srtPath)
+  logger.info('Generated single segment:', result)
+  setTimeout(() => {
+    handleSrt(output)
+  }, 200)
   return {
     audio: `${STATIC_DOMAIN}/${path.join(dir, id)}`,
     srt: `${STATIC_DOMAIN}/${path.join(dir, id.replace('.mp3', '.srt'))}`,

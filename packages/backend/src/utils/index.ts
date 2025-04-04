@@ -186,12 +186,13 @@ export function streamToResponse(
     outputStream.destroy()
     return
   }
-  inputStream.pipe(outputStream).pipe(res)
+  const streamer = inputStream.pipe(outputStream)
+  streamer.pipe(res)
 
   if (fileName) {
     const streamFile = resolve(AUDIO_DIR, fileName)
     const localStream = createWriteStream(streamFile)
-    inputStream.pipe(outputStream).pipe(localStream)
+    streamer.pipe(localStream)
   }
 }
 
