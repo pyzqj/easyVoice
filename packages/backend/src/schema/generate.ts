@@ -15,9 +15,18 @@ export const edgeSchema = z.object({
 
 export const llmSchema = z.object({
   text: z.string().trim().min(5, { message: '文本最少 5 字符！' }),
-  openaiBaseUrl: z.string().trim().url('请输入有效的 OpenAI API URL！'),
-  openaiKey: z.string().trim().min(1, { message: '请在环境变量设置或前端传入openaiKey！' }),
-  openaiModel: z.string().trim().min(1, { message: '请在环境变量设置或前端传入openaiModel模型名称！' }),
+  openaiBaseUrl: z.preprocess(
+    (val) => val ?? '',
+    z.string().trim().url({ message: '请输入有效的 OpenAI API URL！' })
+  ),
+  openaiKey: z.preprocess(
+    (val) => val ?? '',
+    z.string().trim().min(1, { message: '请在环境变量设置或前端传入 openaiKey！' })
+  ),
+  openaiModel: z.preprocess(
+    (val) => val ?? '',
+    z.string().trim().min(1, { message: '请在环境变量设置或前端传入 openaiModel 模型名称！' })
+  ),
   useLLM: z.boolean().default(true),
 })
 
