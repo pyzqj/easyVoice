@@ -76,6 +76,15 @@ export async function generateTTSStream(params: Required<EdgeSchema>, task: Task
     generateWithoutLLMStream({ ...params, output: segment.id }, task)
   }
 }
+export async function generateTTSStreamJson(formatedBody: Required<EdgeSchema>[], task: Task) {
+  const { segment } = task.context as Required<NonNullable<Task['context']>>
+  const output = path.resolve(AUDIO_DIR, segment.id)
+  const segments = formatedBody
+  console.log(`generateTTSStreamJson splitText length: ${formatedBody.length} `)
+  const buildSegments = segments.map((segment) => ({ ...segment, output }))
+  console.log('buildSegments:', buildSegments)
+  buildSegmentList(buildSegments, task)
+}
 
 /**
  * 使用 LLM 生成 TTS

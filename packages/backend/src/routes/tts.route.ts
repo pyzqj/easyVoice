@@ -9,7 +9,8 @@ import {
 } from '../controllers/tts.controller'
 import { pickSchema } from '../controllers/pick.controller'
 import { ttsPluginManager } from '../tts/pluginManager'
-import { createTaskStream } from '../controllers/stream.controller'
+import { createTaskStream, generateJson } from '../controllers/stream.controller'
+import { validateJson } from '../schema/generate'
 
 const router = Router()
 
@@ -30,5 +31,6 @@ router.get('/download/:file', downloadAudio)
 router.post('/create', pickSchema, createTask)
 router.post('/createStream', pickSchema, createTaskStream)
 router.post('/generate', pickSchema, generateAudio)
+router.post('/generateJson', validateJson, generateJson)
 
 export default router

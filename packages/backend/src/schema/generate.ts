@@ -30,6 +30,22 @@ export const llmSchema = z.object({
   useLLM: z.boolean().default(true),
 })
 
+const dataItemSchema = z.object({
+  text: z.string().min(1, '文本内容不能为空'),
+  voice: z.string().min(1, '语音类型不能为空'),
+  rate: z.string().default(''),
+  pitch: z.string().default(''),
+  volume: z.string().default(''),
+})
+
+const jsonSchema = z.object({
+  data: z.array(dataItemSchema).min(1, '数据数组不能为空'),
+})
+
+// 导出类型（可选）
+export type DataItem = z.infer<typeof dataItemSchema>
+export type JsonSchema = z.infer<typeof jsonSchema>
+
 export type LlmSchema = z.infer<typeof llmSchema>
 
 export type EdgeSchema = z.infer<typeof edgeSchema>
@@ -91,4 +107,17 @@ export const validateLLM = (req: Request, res: Response, next: NextFunction) => 
     req.body.openaiModel = MODEL_NAME
   }
   commonValidate(req, res, next, llmSchema)
+}
+export const validateJson = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    jsonSchema.parse(req.body)
+    next()
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ code: 400, errors: error.errors, success: false })
+      return
+    }
+    res.status(500).json({ code: 500, message: 'Internal server error' })
+    return
+  }
 }
