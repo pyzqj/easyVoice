@@ -1,4 +1,4 @@
-import { config } from './../config/index'
+import { config, LIMIT_TEXT_LENGTH, LIMIT_TEXT_LENGTH_ERROR_MESSAGE } from './../config/index'
 import { NextFunction, Response, Request } from 'express'
 import { z } from 'zod'
 import { logger } from '../utils/logger'
@@ -58,6 +58,18 @@ const commonValidate = (req: Request, res: Response, next: NextFunction, schema:
       baseURL: req.body.openaiBaseUrl,
       model: req.body.openaiModel,
     })
+    if (LIMIT_TEXT_LENGTH) {
+      const allTxt = req.body.text
+      if (allTxt?.length > LIMIT_TEXT_LENGTH) {
+        res.status(400).json({
+          code: 400,
+          message:
+            LIMIT_TEXT_LENGTH_ERROR_MESSAGE || `文本内容不能超出 ${LIMIT_TEXT_LENGTH} 字符哦！`,
+          success: false,
+        })
+        return
+      }
+    }
     next()
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -111,6 +123,18 @@ export const validateLLM = (req: Request, res: Response, next: NextFunction) => 
 export const validateJson = (req: Request, res: Response, next: NextFunction) => {
   try {
     jsonSchema.parse(req.body)
+    if (LIMIT_TEXT_LENGTH) {
+      const allTxt = req.body.data.map((item: any) => item.text).join('')
+      if (allTxt?.length > LIMIT_TEXT_LENGTH) {
+        res.status(400).json({
+          code: 400,
+          message:
+            LIMIT_TEXT_LENGTH_ERROR_MESSAGE || `文本内容不能超出 ${LIMIT_TEXT_LENGTH} 字符哦！`,
+          success: false,
+        })
+        return
+      }
+    }
     next()
   } catch (error) {
     if (error instanceof z.ZodError) {

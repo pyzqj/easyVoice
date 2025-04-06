@@ -1,7 +1,7 @@
 <template>
   <div class="audio-player" :class="{ 'is-playing': isPlaying }">
     <div class="player-container">
-w      <el-button circle :icon="isPlaying ? VideoPause : CaretRight" @click="togglePlay" />
+      <el-button circle :icon="isPlaying ? VideoPause : CaretRight" @click="togglePlay" />
       <div class="progress-container">
         <div class="time current-time">{{ formatTime(currentTime) }}</div>
         <div class="progress-bar-container">
