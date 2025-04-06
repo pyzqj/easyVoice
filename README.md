@@ -22,7 +22,7 @@
 
 ## 体验一下
 
-[easyvoice.denode.fun](https://easyvoice.denode.fun)
+[easyvoice.ioplus.tech](https://easyvoice.ioplus.tech)
 
 ## 核心功能 🌟
 
