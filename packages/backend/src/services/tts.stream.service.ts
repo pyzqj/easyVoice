@@ -80,9 +80,9 @@ export async function generateTTSStreamJson(formatedBody: Required<EdgeSchema>[]
   const { segment } = task.context as Required<NonNullable<Task['context']>>
   const output = path.resolve(AUDIO_DIR, segment.id)
   const segments = formatedBody
-  console.log(`generateTTSStreamJson splitText length: ${formatedBody.length} `)
+  logger.info(`generateTTSStreamJson splitText length: ${formatedBody.length} `)
   const buildSegments = segments.map((segment) => ({ ...segment, output }))
-  console.log('buildSegments:', buildSegments)
+  logger.info('buildSegments:', buildSegments)
   buildSegmentList(buildSegments, task)
 }
 
@@ -183,7 +183,7 @@ async function generateWithoutLLMStream(params: TTSParams, task: Task) {
   const { segment } = task.context as Required<NonNullable<Task['context']>>
   const { text } = segment
   const { length, segments } = splitText(text)
-  console.log(`splitText length: ${length} `)
+  logger.info(`splitText length: ${length} `)
   if (length <= 1) {
     buildSegment(params, task)
   } else {
@@ -311,11 +311,10 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
     }
 
     try {
+      // TODO: Concurrency of streaming flow
       const audioStream = await generateWithRetry()
       await audioStream.pipe(outputStream, { end: false })
-      await new Promise((resolve) => {
-        audioStream.on('end', resolve)
-      })
+      await new Promise((resolve) => audioStream.on('end', resolve))
       completedSegments++
       logger.info(`processing text:\n ${segment.text.slice(0, 10)}...`)
       logger.info(`Segment ${index + 1}/${totalSegments} completed. Progress: ${progress()}%`)
