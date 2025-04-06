@@ -1,11 +1,7 @@
 <template>
   <div class="audio-player" :class="{ 'is-playing': isPlaying }">
     <div class="player-container">
-      <el-button
-        circle
-        :icon="isPlaying ? VideoPause : CaretRight"
-        @click="togglePlay"
-      />
+      <el-button circle :icon="isPlaying ? VideoPause : CaretRight" @click="togglePlay" />
       <div class="progress-container">
         <div class="time current-time">{{ formatTime(currentTime) }}</div>
         <div class="progress-bar-container">
@@ -17,19 +13,13 @@
                 :key="index"
                 class="segment"
                 :style="segmentStyle(segment)"
-                :title="`${segment.voice} (${formatTime(
-                  segment.start
-                )} - ${formatTime(segment.end)})`"
+                :title="`${segment.voice} (${formatTime(segment.start)} - ${formatTime(
+                  segment.end
+                )})`"
               ></div>
             </div>
-            <div
-              class="progress-filled"
-              :style="{ width: progressPercent + '%' }"
-            ></div>
-            <div
-              class="progress-thumb"
-              :style="{ left: progressPercent + '%' }"
-            ></div>
+            <div class="progress-filled" :style="{ width: progressPercent + '%' }"></div>
+            <div class="progress-thumb" :style="{ left: progressPercent + '%' }"></div>
           </div>
         </div>
         <div class="time duration">{{ formatTime(duration) }}</div>
@@ -39,15 +29,8 @@
     <div class="voice-display" v-if="currentVoice?.voice">
       <transition name="voice-bubble" mode="out-in">
         <div class="voice-bubble-wrapper" :key="currentVoice.voice">
-          <div
-            class="voice-bubble"
-            :style="{ backgroundColor: currentVoice.color }"
-          >
-            <el-avatar
-              :size="28"
-              :src="currentVoice.avatar"
-              class="bubble-avatar"
-            />
+          <div class="voice-bubble" :style="{ backgroundColor: currentVoice.color }">
+            <el-avatar :size="28" :src="currentVoice.avatar" class="bubble-avatar" />
             <span
               class="voice-name"
               @click="jumpToVoice(currentVoice.voice)"
@@ -65,200 +48,205 @@
 </template>
 
 <script setup lang="ts">
-import Hero from "@/assets/hero.mp3";
-import { VideoPause, CaretRight, ChatLineRound } from "@element-plus/icons-vue";
-import { ref, onMounted, onBeforeUnmount } from "vue";
-import zhCNYunyangNeural from "@/assets/avatar/zh-CN-YunyangNeural.png";
-import zhCNXiaoxiaoNeural from "@/assets/avatar/zh-CN-XiaoxiaoNeural.png";
-import zhCNYunxiNeural from "@/assets/avatar/zh-CN-YunxiNeural.png";
-import zhMale from "@/assets/avatar/zh-CN-standard-male.svg";
-import zhFemale from "@/assets/avatar/zh-CN-standard-female.svg";
+import Hero from '@/assets/hero.mp3'
+import { VideoPause, CaretRight, ChatLineRound } from '@element-plus/icons-vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import zhCNYunyangNeural from '@/assets/avatar/zh-CN-YunyangNeural.png'
+import zhCNXiaoxiaoNeural from '@/assets/avatar/zh-CN-XiaoxiaoNeural.png'
+import zhCNYunxiNeural from '@/assets/avatar/zh-CN-YunxiNeural.png'
+import zhMale from '@/assets/avatar/zh-CN-standard-male.svg'
+import zhFemale from '@/assets/avatar/zh-CN-standard-female.svg'
 
 defineOptions({
-  name: "AppleAudioPlayer",
-});
+  name: 'AppleAudioPlayer',
+})
 
-const audio = ref<HTMLAudioElement | null>(null);
-const isPlaying = ref(false);
-const currentTime = ref(0);
-const currentVoice = ref();
-const duration = ref(0);
-const progressPercent = ref(0);
+const progressBar = ref<HTMLElement | null>(null)
+const audio = ref<HTMLAudioElement | null>(null)
+const isPlaying = ref(false)
+const currentTime = ref(0)
+const currentVoice = ref()
+const duration = ref(0)
+const progressPercent = ref(0)
 
-// 定义声音时间段
+const colorMap = {
+  徐凤年: (opacity = 1) => `rgba(255, 135, 135, ${opacity})`,
+  姜泥: (opacity = 1) => `rgba(100, 100, 211, ${opacity})`,
+  路人甲: (opacity = 1) => `rgba(90, 185, 138, ${opacity})`,
+  路人乙: (opacity = 1) => `rgba(163, 217, 100, ${opacity})`,
+  旁白1: (opacity = 1) => `rgba(245, 225, 164, ${opacity})`,
+  旁白2: (opacity = 1) => `rgba(245, 215, 100, ${opacity})`,
+  卢白撷: (opacity = 1) => `rgba(142, 158, 239, ${opacity})`,
+}
+type VoiceColor = keyof typeof colorMap
+const getVoiceColor = (name: VoiceColor, opacity: number = 1) => colorMap[name](opacity)
+const voiceColors = Object.fromEntries(
+  Object.entries(colorMap).map(([key, fn]) => [key, fn(1)])
+) as {
+  [K in VoiceColor]: string
+}
 const voiceSegments = [
   {
-    voice: "晓晓",
+    voice: '徐凤年',
     start: 0,
-    end: 3.816,
-    avatar: zhCNXiaoxiaoNeural,
-    color: "rgba(255, 107, 107, 0.3)",
-    textColor: "#ff6b6b",
-  },
-  {
-    voice: "晓伊",
-    start: 3.816,
-    end: 8.88,
-    avatar: zhFemale,
-    color: "rgba(78, 205, 196, 0.3)",
-    textColor: "#4ecdc4",
-  },
-  {
-    voice: "云健",
-    start: 8.88,
-    end: 14.4,
+    end: 4.237,
     avatar: zhMale,
-    color: "rgba(69, 183, 209, 0.3)",
-    textColor: "#45b7d1",
+    color: getVoiceColor('徐凤年', 0.3),
+    textColor: getVoiceColor('徐凤年'),
   },
   {
-    voice: "云希",
-    start: 14.4,
-    end: 19.28,
-    avatar: zhCNYunxiNeural,
-    color: "rgba(150, 201, 61, 0.3)",
-    textColor: "#96c93d",
+    voice: '姜泥',
+    start: 4.337,
+    end: 7.8,
+    avatar: zhCNXiaoxiaoNeural,
+    color: getVoiceColor('姜泥', 0.3),
+    textColor: getVoiceColor('姜泥'),
   },
   {
-    voice: "云夏",
-    start: 19.28,
-    end: 24.232,
+    voice: '路人甲',
+    start: 7.81,
+    end: 13.0,
     avatar: zhFemale,
-    color: "rgba(247, 215, 148, 0.3)",
-    textColor: "#f7d794",
+    color: getVoiceColor('路人甲', 0.3),
+    textColor: getVoiceColor('路人甲'),
   },
   {
-    voice: "云扬",
-    start: 24.232,
+    voice: '路人乙',
+    start: 13.1,
+    end: 17.8,
+    avatar: zhFemale,
+    color: getVoiceColor('路人乙', 0.3),
+    textColor: getVoiceColor('路人乙'),
+  },
+  {
+    voice: '旁白1',
+    start: 17.9,
+    end: 36.4,
+    avatar: zhCNYunxiNeural,
+    color: getVoiceColor('旁白1', 0.3),
+    textColor: getVoiceColor('旁白1'),
+  },
+  {
+    voice: '旁白2',
+    start: 36.5,
+    end: 69.8,
+    avatar: zhCNYunxiNeural,
+    color: getVoiceColor('旁白2', 0.3),
+    textColor: getVoiceColor('旁白2'),
+  },
+  {
+    voice: '卢白撷',
+    start: 69.81,
     end: Infinity,
     avatar: zhCNYunyangNeural,
-    color: "rgba(119, 139, 235, 0.3)",
-    textColor: "#778beb",
+    color: getVoiceColor('卢白撷', 0.3),
+    textColor: getVoiceColor('卢白撷'),
   },
-];
+]
 
 onMounted(() => {
-  audio.value = new Audio(Hero);
-  audio.value.addEventListener("timeupdate", updateProgress);
-  audio.value.addEventListener("loadedmetadata", () => {
-    duration.value = audio.value!.duration;
-  });
-  audio.value.addEventListener("ended", () => {
-    isPlaying.value = false;
-  });
-  audio.value.load();
-});
+  audio.value = new Audio(Hero)
+  audio.value.addEventListener('timeupdate', updateProgress)
+  audio.value.addEventListener('loadedmetadata', () => {
+    duration.value = audio.value!.duration
+  })
+  audio.value.addEventListener('ended', () => {
+    isPlaying.value = false
+  })
+  audio.value.load()
+})
 
 onBeforeUnmount(() => {
   if (audio.value) {
-    audio.value.removeEventListener("timeupdate", updateProgress);
-    audio.value.pause();
-    audio.value = null;
+    audio.value.removeEventListener('timeupdate', updateProgress)
+    audio.value.pause()
+    audio.value = null
   }
-});
+})
 
 const togglePlay = () => {
-  if (!audio.value) return;
+  if (!audio.value) return
+  ;(globalThis as any).audio = audio.value
   if (isPlaying.value) {
-    audio.value.pause();
+    audio.value.pause()
   } else {
-    audio.value.play();
+    audio.value.play()
   }
-  isPlaying.value = !isPlaying.value;
-};
+  isPlaying.value = !isPlaying.value
+}
 
 const updateProgress = () => {
-  if (!audio.value) return;
-  currentTime.value = audio.value.currentTime;
-  progressPercent.value = (currentTime.value / duration.value) * 100 || 0;
+  if (!audio.value) return
+  currentTime.value = audio.value.currentTime
+  progressPercent.value = (currentTime.value / duration.value) * 100 || 0
 
-  // 更新当前声音
   const currentSegment = voiceSegments.find(
-    (segment) =>
-      currentTime.value >= segment.start && currentTime.value < segment.end
-  );
+    (segment) => currentTime.value >= segment.start && currentTime.value < segment.end
+  )
   if (currentSegment) {
-    currentVoice.value = currentSegment;
+    currentVoice.value = currentSegment
   }
-};
+}
 
-// 响应式引用需要添加
-const progressBar = ref<HTMLElement | null>(null);
-
-// 拖动进度条
 const seek = (event: MouseEvent) => {
-  if (!audio.value || !progressBar.value) return;
+  if (!audio.value || !progressBar.value) return
 
   const updatePosition = (e: MouseEvent) => {
-    const rect = progressBar.value!.getBoundingClientRect();
-    const offsetX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const percent = offsetX / rect.width;
-    progressPercent.value = percent * 100; // 实时更新进度百分比
-    audio.value!.currentTime = percent * duration.value;
-  };
+    const rect = progressBar.value!.getBoundingClientRect()
+    const offsetX = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
+    const percent = offsetX / rect.width
+    progressPercent.value = percent * 100 // 实时更新进度百分比
+    audio.value!.currentTime = percent * duration.value
+  }
 
-  // 初次点击更新
-  updatePosition(event);
+  updatePosition(event)
 
-  // 添加鼠标移动和松开事件
-  const onMouseMove = (e: MouseEvent) => updatePosition(e);
+  const onMouseMove = (e: MouseEvent) => updatePosition(e)
   const onMouseUp = () => {
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
-  };
+    document.removeEventListener('mousemove', onMouseMove)
+    document.removeEventListener('mouseup', onMouseUp)
+  }
 
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("mouseup", onMouseUp);
-};
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
+}
 
-// 计算分段样式
 const segmentStyle = (segment: (typeof voiceSegments)[0]) => {
-  const startPercent = (segment.start / duration.value) * 100;
-  const endPercent = Math.min((segment.end / duration.value) * 100, 100);
+  const startPercent = (segment.start / duration.value) * 100
+  const endPercent = Math.min((segment.end / duration.value) * 100, 100)
   return {
     left: `${startPercent}%`,
     width: `${endPercent - startPercent}%`,
     backgroundColor: getSegmentColor(segment.voice),
-  };
-};
-const voiceColors = {
-  晓晓: "#ff6b6b",
-  晓伊: "#4ecdc4",
-  云健: "#45b7d1",
-  云希: "#96c93d",
-  云夏: "#f7d794",
-  云扬: "#778beb",
-};
-type VoiceColor = keyof typeof voiceColors;
+  }
+}
 
-// 为不同声音分配颜色
 const getSegmentColor = (voice: string) => {
   if (voice in voiceColors) {
-    return voiceColors[voice as VoiceColor];
+    return voiceColors[voice as VoiceColor]
   }
-  return "#007aff";
-};
+  return '#007aff'
+}
 
-// 跳转到指定声音
 const jumpToVoice = (voice: string) => {
-  const segment = voiceSegments.find((s) => s.voice === voice);
+  const segment = voiceSegments.find((s) => s.voice === voice)
   if (segment && audio.value) {
-    audio.value.currentTime = segment.start;
-    if (!isPlaying.value) togglePlay();
+    audio.value.currentTime = segment.start
+    if (!isPlaying.value) togglePlay()
   }
-};
+}
 
 const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-};
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`
+}
 
 defineExpose({
   togglePlay,
   seek,
   formatTime,
-});
+})
 </script>
 
 <style scoped>
@@ -270,8 +258,7 @@ defineExpose({
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   transition: all 0.3s ease;
 }
 .audio-player:hover {
@@ -289,12 +276,12 @@ defineExpose({
 
 .segment {
   height: 100%;
-  opacity: 0.3;
+  opacity: 0.8;
   transition: opacity 0.2s ease;
 }
 
 .segment:hover {
-  opacity: 0.5;
+  opacity: 1;
 }
 
 .voice-display {

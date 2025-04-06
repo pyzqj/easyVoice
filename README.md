@@ -1,12 +1,8 @@
 # EasyVoice 🎙️
 
-## 在线体验
-
-[easyvoice.denode.fun](https://easyvoice.denode.fun)
-
 ## 项目简介 ✨  
 
-**EasyVoice** 是一个开源的智能文本/小说转语音解决方案，旨在帮助用户轻松将文本内容转换为高质量的语音输出。  
+**EasyVoice** 是一个开源的文本、小说智能转语音解决方案，旨在帮助用户轻松将文本内容转换为高质量的语音输出。  
 
 - **一键生成语音和字幕**
 
@@ -16,9 +12,17 @@
 
 - **支持将 10 万字以上的小说一键转为有声书！**
 
+- **流式传输，多长的文本都能立刻播放**
+
+- **支持自定义多角色配音**
+
 无论你是想听小说、为创作配音，还是打造个性化音频，EasyVoice 都是你的最佳助手！
 
 **你可以轻松的将 EasyVoice 部署到你的云服务器或者本地！**
+
+## 体验一下
+
+[easyvoice.denode.fun](https://easyvoice.denode.fun)
 
 ## 核心功能 🌟
 
@@ -41,21 +45,12 @@
 
 ## Screenshots📸
 
-![Home](./images/readme.home.png)
-![Generate](./images/readme.generate.png)
-
-## 技术实现 🛠️
-
-- **前端**：Vue 3 + TypeScript + Element Plus 🌐  
-- **后端**：Node.js + Express + TypeScript ⚡  
-- **语音合成**：Microsoft Azure TTS(更多引擎接入中) + OpenAI(OpenAI 兼容即可) + ffmpeg 🎤  
-- **部署**：Node.js + Docker + Docker Compose 🐳  
+![Home](./images/readme.home.jpg)
+![Generate](./images/readme.generate.jpg)
 
 ## 快速开始 🚀
 
 ### 1. 通过 docker 运行
-
-带 AI 配音推荐：
 
 ```bash
 docker run -d \
@@ -69,19 +64,7 @@ docker run -d \
   cosincox/easyvoice:latest
 ```
 
-不使用 AI 配音：
-
-```bash
-docker run -d \
-  --restart unless-stopped \
-  --name easyvoice \
-  -p 3000:3000 \
-  -v $(pwd)/audio:/app/audio \
-  cosincox/easyvoice:latest
-
-```
-
-or 使用 Docker Compose 一键运行！
+or 将仓库克隆到本地，使用 Docker Compose 一键运行！
 
 ```bash
 docker-compose up -d
@@ -108,6 +91,95 @@ pnpm dev:root
 pnpm build:root
 pnpm start:root
 ```
+
+### 3. 生成的音频、字幕保存位置
+
+- Docker 部署： 保存在挂载的 `audio` 目录下
+- Node.js 运行保存在 `./packages/backend/audio` 目录下
+
+## 高级
+
+### 角色自定义
+
+启动服务后尝试在命令行运行下述命令：
+
+```bash
+curl -X POST http://localhost:3000/api/v1/tts/generateJson \
+  -H "Content-Type: application/json" \
+  -d '{
+  "data": [
+    {
+      "desc": "徐凤年",
+      "text": "你敢动他，我会穷尽一生毁掉卢家，说到做到",
+      "voice": "zh-CN-YunjianNeural",
+      "volume": "40%"
+    },
+    {
+      "desc": "姜泥",
+      "text": "徐凤年，你快走，你打不过的",
+      "voice": "zh-CN-XiaoyiNeural"
+    },
+    {
+      "desc": "路人甲",
+      "text": "他可是堂堂棠溪剑仙，这小子真是遇到强敌了",
+      "voice": "zh-CN-XiaoniNeural",
+      "volume": "-20%"
+    },
+    {
+      "desc": "路人乙",
+      "text": "这小子真是不知死活，竟然敢挑战卢白撷",
+      "voice": "zh-TW-HsiaoChenNeural",
+      "volume": "-20%"
+    },
+    {
+      "desc": "旁白",
+      "text": "面对棠溪剑仙卢白撷的杀意，徐凤年按住剑柄蓄势待发，他将姜泥放在心尖上，话锋一句比一句犀利，威逼利诱的要求卢白撷放姜泥一条生路。卢白撷也是不撞南墙不回头的人，他与西楚有深仇大恨不得不报...",
+      "voice": "zh-CN-YunxiNeural",
+      "rate": "0%",
+      "pitch": "0Hz",
+      "volume": "0%"
+    },
+    {
+      "desc": "旁白",
+      "text": "卢白撷凝聚剑气，剑光如虹，直指姜泥。剑气快到姜泥的时候，竟然被一颗小石子打破！万千剑气瞬间消散。居然就是刚刚进入山门的青衣男子。卢白撷心中警铃大作，再次凝结千万水剑想要先下手为强，青衣男子竟然一只手就挡下了，随之飓风盘起，竟然有山呼海啸之势，众人分分被逼退。随后的打斗，青衣男子每一步都精准预测了卢白撷的动作，卢白撷心中惊骇不已。",
+      "voice": "zh-CN-YunxiNeural",
+      "rate": "0%",
+      "pitch": "0Hz",
+      "volume": "0%"
+    },
+    {
+      "desc": "卢白撷",
+      "text": "人心入局，观子无敌，棋局未央，棋子难逃。你是！？ 曹长卿！",
+      "voice": "zh-CN-YunyangNeural",
+      "rate": "-2%",
+      "pitch": "2Hz",
+      "volume": "10%"
+    }
+  ]
+}' \
+-o output.mp3
+
+```
+
+你将看到output.mp3文件的生成，并立即可以播放。
+
+#### 参数说明
+
+- text: 你需要转语音的文字。
+- voice: 你需要用到的声音，参考：[支持的声音列表](./packages/backend/src/llm/prompt/voiceList.json)
+- rate: 语速调整，百分比形式，默认 +0%（正常），如 "+50%"（加快 50%），"-20%"（减慢 20%）。
+- volume: 音量调整，百分比形式，默认 +0%（正常），如 "+20%"（增 20%），"-10%"（减 10%）。
+- pitch: 音调调整，默认 +0Hz（正常），如 "+10Hz"（提高 10 赫兹），"-5Hz"（降低 5 赫兹）。
+
+### 接入其他 TTS 服务
+- TODO
+
+## 技术实现 🛠️
+
+- **前端**：Vue 3 + TypeScript + Element Plus 🌐  
+- **后端**：Node.js + Express + TypeScript ⚡  
+- **语音合成**：Microsoft Azure TTS(更多引擎接入中) + OpenAI(OpenAI 兼容即可) + ffmpeg 🎤  
+- **部署**：Node.js + Docker + Docker Compose 🐳  
 
 ## 快速开发 🚀
 
@@ -155,7 +227,7 @@ pnpm dev
 - A: AI 推荐配音是通过大模型来决定不同的段落的配音参数，大模型的能力直接影响配音结果，你可以尝试更换不同的大模型，或者是用 Edge-TTS 选择固定的声音配音。
 
 - **Q: 速度太慢？**
-- A: AI 推荐配音需要把输入的文本分段、然后让 AI 分析、推荐每一分段的配音参数，最后再生成音频、拼接。速度会比直接用 Edge-TTS慢。你可以更换相应更快的大模型，或者尝试调节`.env`文件的 Edge-TTS 的并发参数：EDGE_API_LIMIT为更大的值(10 以下)，注意并发太高可能会有限制。
+- A: AI 推荐配音需要把输入的文本分段、然后让 AI 分析、推荐每一分段的配音参数，最后再生成音频、拼接。速度会比直接用 Edge-TTS慢。你可以更换相应更快的大模型，或者尝试调节 Edge-TTS 的并发参数：EDGE_API_LIMIT为更大的值(10 以下)，注意并发太高可能会有限制。
 
 ## Tips
 

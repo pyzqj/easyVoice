@@ -255,6 +255,7 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
   const output = path.resolve(AUDIO_DIR, outputId)
   let completedSegments = 0
   if (!totalSegments) {
+    task?.endTask?.(task.id)
     return void res.status(400).end('No segments provided')
   }
 
