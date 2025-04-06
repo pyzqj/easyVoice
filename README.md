@@ -28,11 +28,11 @@
 
 - **文本转语音** 📝 ➡️ 🎵  
   一键将大段文本转为语音，高效又省时。
-- **流式传输** 🎧  
+- **流式传输** 🌊  
   再多的文本，都可以迅速返回音频直接开始试听！
 - **多语言支持** 🌍  
   支持中文、英文等多种语言。  
-- **字幕支持** 🌍  
+- **字幕支持** 💬  
   自动生成字幕文件，方便视频制作和字幕翻译。  
 - **角色配音** 🎭  
   提供多种声音选项，完美适配不同角色。  
@@ -53,15 +53,8 @@
 ### 1. 通过 docker 运行
 
 ```bash
-docker run -d \
-  --restart unless-stopped \
-  --name easyvoice \
-  -p 3000:3000 \
-  -v $(pwd)/audio:/app/audio \
-  -e OPENAI_BASE_URL=https://api.openai.com/v1 \
-  -e OPENAI_KEY=your_openai_key_here \
-  -e MODEL_NAME=gpt-4o-mini \
-  cosincox/easyvoice:latest
+# 极简运行，你可以通过 -e 指定环境变量
+docker run -d -p 3000:3000 -v $(pwd)/audio:/app/audio cosincox/easyvoice:latest
 ```
 
 or 将仓库克隆到本地，使用 Docker Compose 一键运行！
@@ -172,6 +165,7 @@ curl -X POST http://localhost:3000/api/v1/tts/generateJson \
 - pitch: 音调调整，默认 +0Hz（正常），如 "+10Hz"（提高 10 赫兹），"-5Hz"（降低 5 赫兹）。
 
 ### 接入其他 TTS 服务
+
 - TODO
 
 ## 技术实现 🛠️
@@ -183,25 +177,25 @@ curl -X POST http://localhost:3000/api/v1/tts/generateJson \
 
 ## 快速开发 🚀
 
-1. 克隆仓库
+1.克隆仓库
 
 ```bash
 git clone https://github.com/cosin2077/easyVoice.git
 ```
 
-2. 安装依赖
+2.安装依赖
 
 ```bash
 pnpm i -r
 ```
 
-3. 启动项目
+3.启动项目
 
 ```bash
 pnpm dev
 ```
 
-4. 打开浏览器，访问 `http://localhost:5173/`，开始体验吧！
+4.打开浏览器，访问 `http://localhost:5173/`，开始体验吧！
 
 ## 环境变量 ⚙️
 
