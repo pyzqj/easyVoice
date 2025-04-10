@@ -228,9 +228,6 @@
       :duration="streamDuration"
       @close="handleClose"
     />
-    <div class="generate-confetti">
-      <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
-    </div>
     <DownloadList />
   </div>
 </template>
@@ -240,7 +237,6 @@ import { AxiosError } from 'axios'
 import { Sparkles } from 'lucide-vue-next'
 import { ref, computed, onMounted, watch, onBeforeMount, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import ConfettiExplosion from 'vue-confetti-explosion'
 import { useGenerationStore } from '@/stores/generation'
 import { UploadFilled, Service } from '@element-plus/icons-vue'
 import {
@@ -250,6 +246,7 @@ import {
   mockProgress,
   toFixed,
 } from '@/utils'
+import confetti from 'canvas-confetti'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
 import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
 import DownloadList from '@/components/DownloadList.vue'
@@ -269,13 +266,13 @@ const { audioConfig } = configStore
 
 const streamDuration = ref<number>(0)
 
-const confettiActive = ref(false)
 const generating = ref(false)
 const previewLoading = ref(false)
 const showStreamButton = ref(false)
 
 const successAudio = ref<HTMLAudioElement>()
 const audioPlayer = ref<HTMLAudioElement>()
+const confettiElement = ref<HTMLElement|null>(null)
 
 const voiceList = ref<Voice[]>(defaultVoiceList)
 const audioPlayerRef = ref<InstanceType<typeof StreamButton> | null>(null)
@@ -534,7 +531,8 @@ const previewAudio = async () => {
   }
 }
 
-const handleGenerate = () => {
+const handleGenerate = (event) => {
+  confettiElement.value = event.target;
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
   if (inputText.length < 200) {
@@ -562,11 +560,17 @@ const updateAudioList = (data: GenerateResponse) => {
   ElMessage.success('语音生成成功！')
   playSuccessSound()
   generating.value = false
-  confettiActive.value = true
 
-  setTimeout(() => {
-    confettiActive.value = false
-  }, 600)
+  const rect = confettiElement.value?.getBoundingClientRect()
+  const originX = (rect.left + rect.width / 2) / window.innerWidth
+  const originY = (rect.top + rect.height / 2) / window.innerHeight
+  console.log(originX, originY)
+  confetti({
+    particleCount: 300,
+    spread: 360,
+    origin: { x: originX, y: originY },
+  })
+
 }
 const generateAudio = async () => {
   const { inputText } = audioConfig
@@ -806,11 +810,6 @@ onMounted(async () => {
   align-items: center;
 }
 
-.generate-confetti {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
 .progress-container {
   width: 100%;
   max-width: 600px;

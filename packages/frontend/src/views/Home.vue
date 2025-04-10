@@ -8,7 +8,6 @@
       <div class="header-actions">
         <el-button type="primary" round @click="triggerConfettiAndGo">
           <Sparkles class="icon" /> 立即体验
-          <ConfettiExplosion v-if="confettiActive" :duration="2500" :stageHeight="500" />
         </el-button>
         <el-button plain round @click="goToGitHub"> <Github class="icon" /> GitHub </el-button>
       </div>
@@ -96,6 +95,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import confetti from 'canvas-confetti'
 import HomeAudio from '@/components/HomeAudio.vue'
 import {
   BookOpen,
@@ -110,10 +110,8 @@ import {
   Info,
   Mail,
 } from 'lucide-vue-next'
-import ConfettiExplosion from 'vue-confetti-explosion'
 
 const router = useRouter()
-const confettiActive = ref(false)
 const fadeout = ref(false)
 
 const goToGenerate = () => {
@@ -124,8 +122,16 @@ const goToGitHub = () => {
   window.open('https://github.com/cosin2077/easyVoice', '_blank')
 }
 
-const triggerConfettiAndGo = () => {
-  confettiActive.value = !confettiActive.value
+const triggerConfettiAndGo = (event) => {
+  const rect = event.target?.getBoundingClientRect()
+  const originX = (rect.left + rect.width / 2) / window.innerWidth
+  const originY = (rect.top + rect.height / 2) / window.innerHeight
+  console.log(originX, originY)
+  confetti({
+    particleCount: 100,
+    spread: 360,
+    origin: { x: originX, y: originY },
+  })
   setTimeout(() => {
     goToGenerate()
   }, 400)
@@ -133,7 +139,6 @@ const triggerConfettiAndGo = () => {
 </script>
 
 <style scoped lang="less">
-
 /* Header */
 .header {
   text-align: center;
@@ -161,46 +166,6 @@ const triggerConfettiAndGo = () => {
   height: 18px;
   margin-right: 6px;
   vertical-align: middle;
-}
-
-/* Confetti Animation */
-.confetti {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  overflow: hidden;
-}
-.confetti::before,
-.confetti::after {
-  content: '';
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background: #ff6b6b;
-  border-radius: 50%;
-  animation: confetti-fall 0.8s ease-out infinite;
-}
-.confetti::before {
-  left: 40%;
-  background: #4ecdc4;
-  animation-delay: 0.2s;
-}
-.confetti::after {
-  left: 60%;
-  background: #ffe66d;
-}
-@keyframes confetti-fall {
-  0% {
-    transform: translateY(-100%) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(100vh) rotate(720deg);
-    opacity: 0;
-  }
 }
 
 /* Features */
