@@ -69,7 +69,7 @@ class TaskManager {
     if (this.isTaskPending(taskId)) {
       throw new Error(`task: ${taskId} already exists!`)
     }
-    if (this.getTaskLength() >= this.MAX_TASKS) {
+    if (this.getPendingTasks()?.length >= this.MAX_TASKS) {
       throw new Error(`Cannot create more than ${this.MAX_TASKS} tasks!`)
     }
     const task = {
@@ -144,6 +144,9 @@ class TaskManager {
   }
   getTaskLength() {
     return this.tasks.size
+  }
+  getPendingTasks() {
+    return Array.from(this.tasks.values()).filter((task) => task.status === 'pending')
   }
   getTaskStats() {
     const tasks = Array.from(this.tasks.values())
