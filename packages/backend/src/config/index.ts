@@ -36,3 +36,5 @@ export const TTS_KOKORO_URL = process.env.TTS_KOKORO_URL || 'http://localhost:88
 
 export const LIMIT_TEXT_LENGTH = parseInt(process.env.LIMIT_TEXT_LENGTH || '0')
 export const LIMIT_TEXT_LENGTH_ERROR_MESSAGE = process.env.LIMIT_TEXT_LENGTH_ERROR_MESSAGE
+export const USE_HELMET = process.env.USE_HELMET === 'true' || false
+export const USE_LIMIT = process.env.USE_LIMIT === 'true' || false
