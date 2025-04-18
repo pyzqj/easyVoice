@@ -272,7 +272,7 @@ const showStreamButton = ref(false)
 
 const successAudio = ref<HTMLAudioElement>()
 const audioPlayer = ref<HTMLAudioElement>()
-const confettiElement = ref<HTMLElement|null>(null)
+const confettiElement = ref<HTMLElement | null>(null)
 
 const voiceList = ref<Voice[]>(defaultVoiceList)
 const audioPlayerRef = ref<InstanceType<typeof StreamButton> | null>(null)
@@ -531,8 +531,8 @@ const previewAudio = async () => {
   }
 }
 
-const handleGenerate = (event) => {
-  confettiElement.value = event.target;
+const handleGenerate = (event: Event) => {
+  confettiElement.value = event.target as HTMLElement
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
   if (inputText.length < 200) {
@@ -562,15 +562,16 @@ const updateAudioList = (data: GenerateResponse) => {
   generating.value = false
 
   const rect = confettiElement.value?.getBoundingClientRect()
-  const originX = (rect.left + rect.width / 2) / window.innerWidth
-  const originY = (rect.top + rect.height / 2) / window.innerHeight
-  console.log(originX, originY)
-  confetti({
-    particleCount: 300,
-    spread: 360,
-    origin: { x: originX, y: originY },
-  })
-
+  if (rect) {
+    const originX = (rect.left + rect.width / 2) / window.innerWidth
+    const originY = (rect.top + rect.height / 2) / window.innerHeight
+    console.log(originX, originY)
+    confetti({
+      particleCount: 300,
+      spread: 360,
+      origin: { x: originX, y: originY },
+    })
+  }
 }
 const generateAudio = async () => {
   const { inputText } = audioConfig
