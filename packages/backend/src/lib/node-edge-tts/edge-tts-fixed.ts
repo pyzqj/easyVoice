@@ -6,7 +6,7 @@ import { access, writeFile } from 'node:fs/promises'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { generateSecMsGecToken, TRUSTED_CLIENT_TOKEN, CHROMIUM_FULL_VERSION } from './drm'
 import { Readable } from 'node:stream'
-import { ensureDir } from '../../utils'
+import { ensureDir, escapeSSML } from '../../utils'
 
 interface SubLine {
   part: string
@@ -335,7 +335,7 @@ class EdgeTTS {
         <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="${this.lang}">
           <voice name="${this.voice}">
             <prosody rate="${this.rate}" pitch="${this.pitch}" volume="${this.volume}">
-              ${text}
+              ${escapeSSML(text)}
             </prosody>
           </voice>
         </speak>`

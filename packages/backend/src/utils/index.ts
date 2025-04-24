@@ -245,3 +245,12 @@ export function streamWithLimit(res: Response, filePath: string, bitrate = 128) 
     clearInterval(timer)
   })
 }
+
+export function escapeSSML(text: string) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
