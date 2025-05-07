@@ -8,5 +8,5 @@
 **analysis**
 run.test.sh
 run.prod.sh
-**test.sh
+**test**.sh
 scripts/docker-compose.yml
