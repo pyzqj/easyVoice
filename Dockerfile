@@ -5,11 +5,9 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages packages
 
-RUN corepack enable
-
-RUN pnpm install
-
-RUN pnpm build
+RUN corepack enable && \
+    pnpm install && \
+    pnpm build
 
 FROM node:20-alpine
 
