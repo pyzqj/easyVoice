@@ -1,4 +1,4 @@
-import { config, LIMIT_TEXT_LENGTH, LIMIT_TEXT_LENGTH_ERROR_MESSAGE } from './../config/index'
+import { config, DIRECT_GEN_LIMIT, LIMIT_TEXT_LENGTH, LIMIT_TEXT_LENGTH_ERROR_MESSAGE } from './../config/index'
 import { NextFunction, Response, Request } from 'express'
 import { z } from 'zod'
 import { logger } from '../utils/logger'
@@ -85,10 +85,10 @@ export const validateEdge = (req: Request, res: Response, next: NextFunction) =>
   const body = req.body
   const isGenerate = req.url.includes('/generate')
   logger.info(`validateEdge`, body, req.url)
-  if (isGenerate && body.text?.length > 200) {
+  if (isGenerate && body.text?.length > DIRECT_GEN_LIMIT) {
     res.status(400).json({
       code: 400,
-      errors: [{ message: '试听文本长度不能超过 200 个字符', path: ['text'] }],
+      errors: [{ message: `文本长度不能超过 ${DIRECT_GEN_LIMIT} 个字符，长文本请用流式接口`, path: ['text'] }],
       success: false,
     })
     return
@@ -99,10 +99,10 @@ export const validateLLM = (req: Request, res: Response, next: NextFunction) => 
   const { useLLM, text } = req.body
   const isGenerate = req.url.includes('/generate')
   logger.info(`validateLLM`, useLLM, req.url)
-  if (isGenerate && useLLM && text?.length > 200) {
+  if (isGenerate && useLLM && text?.length > DIRECT_GEN_LIMIT) {
     res.status(400).json({
       code: 400,
-      errors: [{ message: '试听文本长度不能超过 200 个字符', path: ['text'] }],
+      errors: [{ message: `文本长度不能超过 ${DIRECT_GEN_LIMIT} 个字符，长文本请用流式接口`, path: ['text'] }],
       success: false,
     })
     return
