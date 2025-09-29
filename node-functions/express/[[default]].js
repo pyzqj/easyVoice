@@ -86,8 +86,35 @@ app.use('/api/v1/tts', (req, res, next) => {
       next();
     }
   } else if (req.method === 'POST') {
-    // 对于POST请求，返回一个示例响应
-    res.json({ message: 'TTS API is ready', endpoint: req.path });
+    // 针对generate端点的特殊处理
+    if (req.path === '/generate' || req.path.endsWith('/generate')) {
+      // 为generate端点提供适当的响应
+      try {
+        // 记录请求体以进行调试
+        console.log('Generate request body:', req.body);
+        
+        // 返回模拟的成功响应
+        res.status(200).json({
+          success: true,
+          data: {
+            audioUrl: 'https://example.com/audio/sample.mp3',
+            text: req.body?.text || '',
+            voice: req.body?.voice || 'default',
+            message: '语音生成成功（模拟响应）'
+          }
+        });
+      } catch (error) {
+        console.error('Generate error:', error);
+        res.status(500).json({
+          success: false,
+          message: '生成语音时发生错误',
+          error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+      }
+    } else {
+      // 对于其他POST请求，返回示例响应
+      res.json({ message: 'TTS API is ready', endpoint: req.path });
+    }
   } else {
     next();
   }
