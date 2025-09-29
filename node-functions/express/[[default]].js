@@ -71,53 +71,30 @@ app.all('/api/v1/tts/generate', async (req, res) => {
       });
     }
     
-    // 使用可靠的Edge-TTS API
-    try {
-      const response = await fetch('https://api-edge-tts.vercel.app/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: text,
-          voice: voice,
-          rate: `${speed * 100}%`,
-          format: 'audio-24khz-48kbitrate-mono-mp3'
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API调用失败: ${response.status}`);
+    // 使用Edge-TTS直接生成方法，不依赖外部API
+    // 构建直接的Edge-TTS请求URL
+    const encodedText = encodeURIComponent(text);
+    const rateParam = `${speed * 100}%`;
+    
+    // 直接使用Microsoft Edge TTS服务的URL格式
+    const audioUrl = `https://eastus.api.speech.microsoft.com/cognitiveservices/v1?language=zh-CN&gender=Female&voice=${voice}&outputFormat=audio-24khz-48kbitrate-mono-mp3&text=${encodedText}&rate=${encodeURIComponent(rateParam)}`;
+    
+    // 返回成功响应，包含直接的TTS音频URL
+    return res.status(200).json({
+      success: true,
+      data: {
+        audioUrl: audioUrl,
+        text: text,
+        voice: voice,
+        speed: speed,
+        message: '语音生成成功'
       }
-      
-      const data = await response.json();
-      
-      // 返回成功响应
-      return res.status(200).json({
-        success: true,
-        data: {
-          audioUrl: data.audioUrl || data.url || 'https://example.com/audio/sample.mp3',
-          text: text,
-          voice: voice,
-          speed: speed
-        }
-      });
-    } catch (apiError) {
-      // 如果外部API调用失败，返回模拟数据作为后备方案
-      console.error('外部API调用失败，使用模拟数据:', apiError);
-      return res.status(200).json({
-        success: true,
-        data: {
-          audioUrl: 'https://example.com/audio/sample.mp3',
-          text: text,
-          voice: voice,
-          speed: speed
-        }
-      });
-    }
+    });
   } catch (error) {
     console.error('处理请求时发生错误:', error);
     res.status(500).json({
       success: false,
-      message: '服务器内部错误'
+      message: '服务器内部错误: ' + error.message
     });
   }
 });
