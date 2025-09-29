@@ -7,7 +7,16 @@
     "dev": "pnpm -r dev",
     "start": "pnpm --filter backend start",
     "lint": "pnpm -r lint",
-    "format": "pnpm -r format"
+    "format": "pnpm -r format",
+    "build:node-functions": "mkdir -p node-functions && cp -r packages/backend/src/* node-functions/"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "helmet": "^8.1.0",
+    "express-rate-limit": "^7.5.0",
+    "connect-history-api-fallback": "^2.0.0",
+    "dotenv": "^16.4.7"
   },
   "devDependencies": {
     "@types/node": "^20.11.17",
