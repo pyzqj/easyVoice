@@ -63,61 +63,56 @@ if (USE_LIMIT) {
   }));
 }
 
-// 配置路由
+// 配置路由 - 使用更明确的路由定义方式
 // 健康检查路由
-app.use('/api/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// TTS相关路由 - 这里需要导入并使用实际的控制器
-// 注：由于我们没有查看控制器的具体实现，这里使用简化版本
-app.use('/api/v1/tts', (req, res, next) => {
-  if (req.method === 'GET') {
-    if (req.path === '/engines') {
-      // 简化版本的引擎列表响应
-      res.json([{
-        name: 'edge-tts',
-        languages: ['zh-CN', 'en-US'],
-        voices: []
-      }]);
-    } else if (req.path === '/voiceList') {
-      res.json({ voices: [] });
-    } else {
-      next();
-    }
-  } else if (req.method === 'POST') {
-    // 针对generate端点的特殊处理
-    if (req.path === '/generate' || req.path.endsWith('/generate')) {
-      // 为generate端点提供适当的响应
-      try {
-        // 记录请求体以进行调试
-        console.log('Generate request body:', req.body);
-        
-        // 返回模拟的成功响应
-        res.status(200).json({
-          success: true,
-          data: {
-            audioUrl: 'https://example.com/audio/sample.mp3',
-            text: req.body?.text || '',
-            voice: req.body?.voice || 'default',
-            message: '语音生成成功（模拟响应）'
-          }
-        });
-      } catch (error) {
-        console.error('Generate error:', error);
-        res.status(500).json({
-          success: false,
-          message: '生成语音时发生错误',
-          error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+// TTS相关路由 - 明确定义每个端点
+// GET /api/v1/tts/engines
+app.get('/api/v1/tts/engines', (req, res) => {
+  res.json([{
+    name: 'edge-tts',
+    languages: ['zh-CN', 'en-US'],
+    voices: []
+  }]);
+});
+
+// GET /api/v1/tts/voiceList
+app.get('/api/v1/tts/voiceList', (req, res) => {
+  res.json({ voices: [] });
+});
+
+// POST /api/v1/tts/generate - 明确处理generate端点
+app.post('/api/v1/tts/generate', (req, res) => {
+  try {
+    // 记录请求体以进行调试
+    console.log('Generate request body:', req.body);
+    
+    // 返回模拟的成功响应
+    res.status(200).json({
+      success: true,
+      data: {
+        audioUrl: 'https://example.com/audio/sample.mp3',
+        text: req.body?.text || '',
+        voice: req.body?.voice || 'default',
+        message: '语音生成成功（模拟响应）'
       }
-    } else {
-      // 对于其他POST请求，返回示例响应
-      res.json({ message: 'TTS API is ready', endpoint: req.path });
-    }
-  } else {
-    next();
+    });
+  } catch (error) {
+    console.error('Generate error:', error);
+    res.status(500).json({
+      success: false,
+      message: '生成语音时发生错误',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
+});
+
+// 其他TTS POST请求
+app.post('/api/v1/tts/*', (req, res) => {
+  res.json({ message: 'TTS API is ready', endpoint: req.path });
 });
 
 // 配置静态文件服务
