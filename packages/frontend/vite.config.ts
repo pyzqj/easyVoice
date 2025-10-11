@@ -1,9 +1,10 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite';
 import vue from "@vitejs/plugin-vue";
 import path from "path";
 export default defineConfig({
 
   plugins: [vue()],
+  base: '/', // 确保基础路径正确
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
@@ -19,10 +20,8 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "./dist", // 输出到根目录 dist，与后端共享
-  },
-  test: {
-    environment: 'jsdom',
-    globals: true,
-  },
+    outDir: "./dist",
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 1000,
+  }
 });

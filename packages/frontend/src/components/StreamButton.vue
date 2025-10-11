@@ -4,16 +4,12 @@
       你的浏览器不支持音频播放。
     </audio>
     <div class="controls">
-      <el-button circle @click="left10">
-        <el-icon><DArrowLeft /></el-icon>
-      </el-button>
+      <el-button circle @click="left10" :icon="'DArrowLeft'"></el-button>
       <el-button :type="isPlaying ? 'warning' : 'primary'" circle size="large" @click="toggle">
         <el-icon v-if="!isPlaying"><VideoPlay /></el-icon>
         <el-icon v-else><VideoPause /></el-icon>
       </el-button>
-      <el-button circle @click="right10">
-        <el-icon><DArrowRight /></el-icon>
-      </el-button>
+      <el-button circle @click="right10" :icon="'DArrowRight'"></el-button>
     </div>
     <div class="progress-container">
       <el-slider
@@ -40,7 +36,7 @@ import { ref } from 'vue'
 import { debounce } from '@/utils'
 import { ElButton, ElSlider } from 'element-plus'
 import type { Arrayable } from 'element-plus/es/utils/index.mjs'
-import { VideoPlay, VideoPause, Close, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
+import { VideoPlay, VideoPause, Close } from '@element-plus/icons-vue'
 
 interface Prop {
   duration: number

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "cross-env MODE=development pnpm -r --parallel dev",
-    "build": "pnpm -r build",
+    "build": "cd packages/frontend && npm install && npm run build",
     "test": "pnpm -r test",
     "start": "cross-env MODE=production pnpm --filter @easy-voice/backend start"
   },

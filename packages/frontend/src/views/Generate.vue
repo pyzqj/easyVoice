@@ -243,8 +243,6 @@ import {
   asyncSleep,
   createAudioStreamProcessor,
   mapZHVoiceName,
-  mockProgress,
-  toFixed,
 } from '@/utils'
 import confetti from 'canvas-confetti'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
@@ -258,6 +256,7 @@ import {
   type Voice,
   type GenerateResponse,
   createTaskStream,
+  getTask
 } from '@/api/tts'
 
 const generationStore = useGenerationStore()
@@ -518,8 +517,30 @@ const previewAudio = async () => {
   try {
     const params = buildParams(previewText)
     const { data } = await generateTTS(params)
-    if (data?.audio) {
-      updateConfig('previewAudioUrl', data?.audio)
+    
+    // 适配EdgeOne Pages响应格式，处理可能的ResponseWrapper类型
+    let responseData: any = data
+    if (data && typeof data === 'object') {
+      // 检查是否是嵌套的ResponseWrapper结构
+      if ('data' in data) {
+        responseData = data.data
+        // 再次检查，处理多层嵌套的情况
+        if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+          responseData = responseData.data
+        }
+      }
+    }
+    
+    // 处理任务ID情况
+    if (responseData?.taskId) {
+      // 轮询任务状态
+      const result = await pollTaskStatus(responseData.taskId)
+      if (result && typeof result === 'object' && result.audio) {
+        updateConfig('previewAudioUrl', result.audio)
+      }
+    } else if (responseData && responseData.audio) {
+      // 直接播放音频
+      updateConfig('previewAudioUrl', responseData.audio)
     }
     playSuccessSound()
     setTimeout(audioPlayer?.value!.play)
@@ -583,14 +604,109 @@ const generateAudio = async () => {
   try {
     const params = buildParams(inputText)
     const { data } = await generateTTS(params)
-    if (!data) {
-      throw new Error(`no data returned from generateTTS`)
+  
+  // 适配EdgeOne Pages响应格式，处理可能的ResponseWrapper类型
+  let responseData: any = data
+  if (data && typeof data === 'object') {
+    // 检查是否是嵌套的ResponseWrapper结构
+    if ('data' in data) {
+      responseData = data.data
+      // 再次检查，处理多层嵌套的情况
+      if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+        responseData = responseData.data
+      }
     }
-    updateAudioList(data)
+  }
+  
+  // 处理任务ID情况
+  if (responseData?.taskId) {
+    // 创建音频任务
+    const result = await pollTaskStatus(responseData.taskId)
+    if (result && typeof result === 'object' && result.audio) {
+      // 创建符合GenerateResponse类型的数据对象
+      const audioResult = {
+        audio: result.audio,
+        file: `audio_${Date.now()}.mp3`,
+        id: `audio_${Date.now()}`
+      }
+      updateAudioList(audioResult)
+    } else {
+      throw new Error('生成音频失败，未返回音频数据')
+    }
+  } else if (responseData && responseData.audio) {
+    // 确保数据对象符合GenerateResponse类型
+    const audioResult = {
+      audio: responseData.audio,
+      file: responseData.file || `audio_${Date.now()}.mp3`,
+      id: responseData.id || `audio_${Date.now()}`
+    }
+    updateAudioList(audioResult)
+  } else {
+    throw new Error('no data returned from generateTTS')
+  }
   } catch (error) {
     console.error('生成失败:', error)
     commonErrorHandler(error)
+  } finally {
     generating.value = false
+  }
+}
+
+const pollTaskStatus = async (taskId: string) => {
+  let attempts = 0
+  const maxAttempts = 60 // 最多轮询60次，约1分钟
+  
+  // 模拟进度更新
+  const progressInterval = setInterval(() => {
+    if (generationStore.progress < 90) {
+      generationStore.updateProgress(generationStore.progress + Math.random() * 10)
+    }
+  }, 1000)
+  
+  try {
+    while (attempts < maxAttempts) {
+      attempts++
+      await asyncSleep(2000) // 每2秒轮询一次
+      
+      try {
+        const response = await getTask({ id: taskId })
+        // 适配不同的响应格式
+        let task: any = response
+        if (response && typeof response === 'object') {
+          if ('data' in response) {
+            task = response.data
+            // 再检查一次data属性，因为可能是嵌套的ResponseWrapper
+            if (task && typeof task === 'object' && 'data' in task) {
+              task = task.data
+            }
+          }
+        }
+        
+        // 检查任务状态
+        if (task.status === 'failed') {
+          throw new Error(task.message || '任务执行失败')
+        }
+        
+        // 更新进度
+        if (task.progress !== undefined) {
+          generationStore.updateProgress(task.progress)
+        }
+        
+        // 任务完成或已有音频
+        if (task.status === 'completed' || task.audio) {
+          clearInterval(progressInterval)
+          generationStore.updateProgress(100)
+          return task
+        }
+      } catch (error) {
+        console.error('轮询任务状态失败:', error)
+        // 继续轮询，不中断
+      }
+    }
+    
+    throw new Error('任务执行超时')
+  } finally {
+    clearInterval(progressInterval)
   }
 }
 
@@ -602,66 +718,46 @@ const generateAudioTask = async () => {
 
   try {
     const params = buildParams(inputText)
-    const stream = await createTaskStream(params)
-    if (!(stream instanceof ReadableStream)) {
-      if (stream.code && stream.data) {
-        updateAudioList(stream.data)
-        return
+    const response = await createTaskStream(params)
+    
+    // EdgeOne Pages环境下的流式处理
+    if (response.data?.taskId) {
+      showStreamButton.value = true
+      // 轮询任务状态
+      const result = await pollTaskStatus(response.data.taskId)
+      
+      if (result && typeof result === 'object' && result.audio) {
+        // 更新StreamButton的音频源
+        if (audioPlayerRef.value) {
+          audioPlayerRef.value.audioRef!.src = result.audio
+        }
+        
+        const name = `${params.voice || 'audio'}-${params.text.slice(0, 10)}-${Date.now()}`
+        generating.value = false
+        const audioResult = {
+          audio: result.audio,
+          file: name + '.mp3',
+          id: name,
+          name
+        }
+        generationStore.updateProgress(100)
+        updateAudioList(audioResult)
+        
+        // 设置音频时长
+        if (audioPlayerRef.value?.audioRef) {
+          audioPlayerRef.value.audioRef.addEventListener(
+            'loadedmetadata',
+            () => {
+              streamDuration.value = audioPlayerRef.value!.audioRef!.duration
+            },
+            { once: true }
+          )
+        }
       }
+    } else if (response.data) {
+      // 直接使用返回的数据
+      updateAudioList(response.data)
     }
-    console.log('typeof stream:', typeof stream)
-    console.log('stream instanceof ReadableStream :', stream instanceof ReadableStream)
-    showStreamButton.value = true
-    const onStart = () => {
-      console.log('call onStart...')
-    }
-    const progress = mockProgress(2)
-    const onProgress = () => {
-      let duration = 0
-      if (!processor.value?.isActive()) {
-        duration = audioPlayerRef.value!.audioRef!.duration
-      } else {
-        duration = processor.value!.getLoadedDuration?.()
-      }
-      if (!Number.isNaN(duration)) {
-        streamDuration.value = toFixed(duration)
-      }
-      generationStore.updateProgress(progress.increase())
-    }
-    const onFinished = (newAudioUrl: string, blobs: Blob[]) => {
-      audioPlayerRef.value!.audioRef!.src = newAudioUrl
-      const name = `${params.voice}-${params.text.slice(0, 10)}-${Date.now()}`
-      generating.value = false
-      const result = {
-        audio: audioPlayerRef.value!.audioRef!.src,
-        file: name,
-        id: name,
-        name,
-        blobs,
-      }
-      generationStore.updateProgress(100)
-      updateAudioList(result)
-      audioPlayerRef.value!.audioRef?.addEventListener(
-        'loadedmetadata',
-        () => {
-          streamDuration.value = audioPlayerRef.value!.audioRef!.duration
-        },
-        { once: true }
-      )
-    }
-    const onError = (msg: string) => {
-      console.error(msg)
-    }
-    processor.value = createAudioStreamProcessor(
-      stream as unknown as ReadableStream,
-      onStart,
-      onProgress,
-      onFinished,
-      onError
-    )
-    await asyncSleep(100)
-    audioPlayerRef.value!.audioRef!.src = processor.value!.audioUrl
-    ;(globalThis as any).processor = processor
   } catch (error) {
     console.error('生成失败:', error)
     commonErrorHandler(error)
@@ -706,6 +802,15 @@ onMounted(async () => {
     voiceList.value = response?.data!
   } catch (error) {
     handle429(error)
+    // 使用模拟数据作为备选
+      voiceList.value = [
+        { Name: 'zh-CN-YunxiNeural', Gender: 'Female', cnName: '云希 (女)', ContentCategories: ['general'], VoicePersonalities: [] },
+        { Name: 'zh-CN-YunjianNeural', Gender: 'Male', cnName: '云健 (男)', ContentCategories: ['general'], VoicePersonalities: [] },
+        { Name: 'zh-CN-YunyangNeural', Gender: 'Male', cnName: '云阳 (男)', ContentCategories: ['general'], VoicePersonalities: [] },
+        { Name: 'zh-CN-YunxiaNeural', Gender: 'Female', cnName: '云夏 (女)', ContentCategories: ['general'], VoicePersonalities: [] },
+        { Name: 'en-US-JennyNeural', Gender: 'Female', cnName: 'Jenny (女)', ContentCategories: ['general'], VoicePersonalities: [] },
+        { Name: 'en-US-BrianNeural', Gender: 'Male', cnName: 'Brian (男)', ContentCategories: ['general'], VoicePersonalities: [] }
+      ]
   }
 })
 </script>
