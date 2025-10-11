@@ -51,7 +51,7 @@ exports.main = async function(context) {
     }
     
     // 获取语音列表
-    if (path === '/api/v1/tts/voiceList') {
+    if (path === '/api/tts/voiceList' || path === '/api/v1/tts/voiceList') {
       const voices = [
         { id: 'zh-CN-YunxiNeural', name: '云溪 (女)', language: 'zh-CN' },
         { id: 'zh-CN-YunyangNeural', name: '云阳 (男)', language: 'zh-CN' },
@@ -63,7 +63,7 @@ exports.main = async function(context) {
     }
     
     // 获取引擎列表
-    if (path === '/api/v1/tts/engines') {
+    if (path === '/api/tts/engines' || path === '/api/v1/tts/engines') {
       const engines = [
         {
           name: 'edge-tts',
@@ -75,7 +75,7 @@ exports.main = async function(context) {
     }
     
     // 处理TTS生成请求
-    if (path === '/api/v1/tts/generate' && request.method === 'POST') {
+    if ((path === '/api/tts/generate' || path === '/api/v1/tts/generate') && request.method === 'POST') {
       const data = await request.json();
       
       // 验证参数
@@ -106,7 +106,7 @@ exports.main = async function(context) {
     }
     
     // 处理流式TTS请求
-    if (path === '/api/v1/tts/createStream' && request.method === 'POST') {
+    if ((path === '/api/tts/createStream' || path === '/api/v1/tts/createStream') && request.method === 'POST') {
       const data = await request.json();
       
       // 验证参数
@@ -124,12 +124,12 @@ exports.main = async function(context) {
       return response.status(200).json({
         taskId,
         message: '流式生成已开始',
-        url: `/api/v1/tts/stream/${taskId}`
+        url: `/api/tts/stream/${taskId}`
       });
     }
     
     // 获取任务状态
-    if (path.match(/\/api\/v1\/tts\/task\//)) {
+    if (path.match(/\/api\/(v1\/)?tts\/task\//)) {
       const taskId = path.split('/').pop();
       
       return response.status(200).json({
@@ -138,6 +138,19 @@ exports.main = async function(context) {
         audioUrl: `/audio/${taskId}.mp3`,
         srtUrl: `/audio/${taskId}.srt`
       });
+    }
+    
+    // 文件下载端点
+    if (path.match(/\/api\/(v1\/)?tts\/download\//)) {
+      const fileName = path.split('/').pop();
+      
+      // 返回模拟的音频文件
+      response.headers.set('Content-Type', 'audio/mpeg');
+      response.headers.set('Content-Disposition', `attachment; filename="${fileName}"`);
+      
+      // 在实际环境中，这里应该返回真实的音频文件
+      const mockAudio = Buffer.from('Mock audio file content');
+      return response.status(200).send(mockAudio);
     }
     
     // 其他端点返回404

@@ -2,8 +2,8 @@ import axios from 'axios'
 
 // EdgeOne Pages API配置
 const DEV_URL = 'http://localhost:3000/api/v1/tts'
-// 生产环境使用相对路径，适应EdgeOne Pages
-const PROD_URL = import.meta.env.VITE_API_URL || '/api/v1/tts'
+// 生产环境使用简化路径，适应EdgeOne Pages的路由规则
+const PROD_URL = import.meta.env.VITE_API_URL || '/api/tts'
 const baseURL = import.meta.env.MODE === 'development' ? DEV_URL : PROD_URL
 
 const api = axios.create({
@@ -135,5 +135,5 @@ export const downloadFile = (file: string) => {
   // 适配EdgeOne Pages的文件下载路径
   return import.meta.env.MODE === 'development' 
     ? `${api.defaults.baseURL}/download/${file}`
-    : `/audio/${file}`
+    : `/api/tts/download/${file}`
 }
